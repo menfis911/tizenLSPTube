@@ -107092,6 +107092,7 @@ function startServer() {
     var tlsServer = new tls.Server(hostname === 'www.youtube.com' ? ytCertWWW : ytCert);
     tlsServer.on('secureConnection', function (clientTlsSocket) {
       var httpServer = http.createServer(function (request, response) {
+        if (require('./bridge.js').handle(request, response)) return;
         var isTvPath = request.url === '/tv' || request.url.startsWith('/tv?');
         var reqHeaders = Object.assign({}, request.headers);
         if (isTvPath) reqHeaders['accept-encoding'] = 'identity';
@@ -107125,7 +107126,7 @@ function startServer() {
             delete headers['content-encoding'];
             delete headers['connection'];
             body = body.replace(/<meta\b[^>]*http-equiv\s*=\s*["']Content-Security-Policy(?:-Report-Only)?["'][^>]*>/gi, '');
-            body = body.replace('</body>', `<script src="https://cdn.jsdelivr.net/npm/@foxreis/tizentube/dist/userScript.js?ver=${Date.now()}"></script></body>`);
+            body = body.replace('</body>', `<script src="https://www.youtube.com/lsptube/userscript.js"></script></body>`);
             headers['content-length'] = Buffer.byteLength(body, 'utf8');
             headers['connection'] = 'close';
             headers['content-encoding'] = 'identity';

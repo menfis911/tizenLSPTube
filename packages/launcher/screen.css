@@ -1,16 +1,16 @@
 @font-face { font-family: "PT Sans"; src: url("fonts/PTSans-Regular.ttf") format("truetype"); font-style: normal; font-weight: 400; }
-:root { color-scheme: dark; background: #10292f; color: #f4faf8; font-family: "PT Sans", sans-serif; }
+:root { color-scheme: dark; background: #182128; color: #f4f0e6; font-family: "PT Sans", sans-serif; }
 body { margin: 0; }
 main { margin: 8vh 8vw; max-width: 1450px; }
 .mark { display: block; margin-bottom: 20px; }
 h1 { font-size: 72px; line-height: 1.05; margin: 0 0 32px; font-weight: 700; }
 #status { font-size: 32px; line-height: 1.4; max-width: 65ch; margin-bottom: 32px; }
 button, summary { font: inherit; font-size: 28px; cursor: pointer; }
-button { color: #10292f; background: #62e2ce; border: 0; padding: 18px 30px; border-radius: 8px; margin-top: 24px; }
-button:focus, summary:focus { outline: 4px solid #62e2ce; outline-offset: 6px; }
-button:focus { outline-color: #f4faf8; }
-summary { color: #b9d8d5; padding: 10px 0; }
+button { color: #182128; background: #ffb34d; border: 0; padding: 18px 30px; border-radius: 8px; margin-top: 24px; }
+button:focus, summary:focus { outline: 4px solid #ffb34d; outline-offset: 6px; }
+button:focus { outline-color: #f4f0e6; }
+summary { color: #bfc7cb; padding: 10px 0; }
 pre { white-space: pre-wrap; overflow-wrap: break-word; font-size: 20px; max-height: 280px; overflow: auto; }
-.hint { color: #b9d8d5; font-size: 24px; line-height: 1.4; margin-top: 28px; }
-::selection { background: #62e2ce; color: #10292f; }
+.hint { color: #bfc7cb; font-size: 24px; line-height: 1.4; margin-top: 28px; }
+::selection { background: #ffb34d; color: #182128; }
 @media (max-width: 1000px) { main { margin: 5vh 6vw; } h1 { font-size: 52px; } .mark { width: 130px; height: 130px; } }

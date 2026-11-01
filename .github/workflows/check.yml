@@ -13,10 +13,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: sh scripts/build-userscript.sh
+      - run: git diff --exit-code -- packages/launcher/service/dist
+      - run: node tests/test-vot.cjs
+      - run: node tests/test-translation.cjs
       - run: node tests/test-start.cjs
       - run: node tests/test-https.cjs
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
       - run: python3 scripts/build.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 12.16.3
+      - run: node tests/test-vot.cjs && node tests/test-translation.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: LSPTube-unsigned

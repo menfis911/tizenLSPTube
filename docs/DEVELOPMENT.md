@@ -7,7 +7,17 @@
 - Official release package: https://github.com/reisxd/TizenTube/releases/download/v2.1.1/TizenTubeCobalt.wgt
 - `upstream/` preserves the upstream source (excluding Git internals and node_modules). Lock files are included; the exact release's standalone dependency lock is also in `docs/upstream-release-package-lock.json`.
 - `packages/launcher/service/dist/index.js` is the historical official ncc bundle with our small, documented compatibility/trace patches. It is tracked intentionally to preserve the user-tested baseline, not presented as hand-written source.
-- Original editable service source is preserved alongside the bundle and in upstream/. `compat-https.js`, `diagnostic-bootstrap.js`, `start.js` and tests are directly editable. The bundle still references the original upstream CDN; it is not yet a fully pinned custom YouTube client.
+- Original editable service source is preserved alongside the bundle and in upstream/. `compat-https.js`, `diagnostic-bootstrap.js`, `start.js` and tests are directly editable. Cobalt's script injection is replaced by a same-origin route serving our pinned local userscript. The unused fallback web path retains upstream behaviour.
+
+## Local enhancements and translation
+
+`sh scripts/build-userscript.sh` rebuilds `src/mods` (upstream mods plus LSPTube changes) and `src/vot` using lockfiles, then applies the small Cobalt route/injection patch to both editable proxy source and historical bundle. Generated runtime files are tracked. `bridge.js` serves the local script/icon and intercepts `/lsptube/vot` before any request reaches YouTube. Same-origin routing avoids mixed-content requests from Cobalt to a LAN HTTP service.
+
+`src/vot/vendor` preserves the MIT-licensed protocol schema, generated code and public browser configuration at the documented revision. Node's crypto replaces WebCrypto; the existing verified-TLS transport replaces modern fetch/Blob dependencies. Only validated YouTube IDs and durations reach Yandex. Responses are bounded, requests have deadlines, duplicate requests share one promise, and ready audio must use HTTPS on Yandex domains. No OAuth tokens, worker or local Mac service are used.
+
+The playback controller has an explicit lifetime per video. Cancellation invalidates pending responses; pause, seeking, speed changes, errors and navigation restore or resynchronize media. Partial translations continue polling. Device support for two simultaneous Cobalt media elements must be established on the Freestyle; do not mark this feature hardware-tested from mock tests or an API download.
+
+Checks: `node tests/test-vot.cjs`, `node tests/test-translation.cjs`, existing launcher/HTTPS checks and Python packaging tests. CI also runs translation tests with Node 12.16.3. Optional `node tests/check-yandex-network.cjs` sends a public fixture video link to the real API and checks audio delivery without printing the temporary signed URL. Build dependencies currently retain two low-severity advisories through deepmerge; the build consumes trusted repository configuration, not user-supplied configuration. Avoid forced dependency downgrades; revisit when upstream node-resolve replaces deepmerge.
 
 ## What differs
 

@@ -1,5 +1,14 @@
 # Third-party notices
 
+## LSPTube 0.4.0 additions
+
+- Yandex protocol and generated protobuf definitions: FOSWLY/vot.js 3.2.1, Toil and contributors, commit `9f7220c4af4df92f0df39805a1a47cc52d0323f2`, MIT. See [MIT license](licenses/vot.js-MIT.txt) and [source provenance](src/vot/vendor/README.md). The transport and playback integration are LSPTube modifications.
+- Bundled protobuf wire runtime: @bufbuild/protobuf 2.10.0, Buf Technologies and Google, Apache-2.0 AND BSD-3-Clause. See [Apache license](licenses/bufbuild-protobuf-Apache-2.0.txt) and [Google BSD notice](licenses/bufbuild-protobuf-Google-BSD-3-Clause.txt). Original copyright comments remain in the bundle.
+- Build-only esbuild 0.25.12, Evan Wallace, MIT: [license](licenses/esbuild-0.25.12-MIT.md).
+- The locally built enhancements use the original TizenTube mods sources under GPL-3.0-only. Their dependency versions are pinned in `src/mods/package-lock.json`; original notices below remain preserved. Build-tool updates do not update the historical network-service bundle.
+
+## Preserved upstream notices
+
 LSPTube is derived from TizenTube v2.1.1, copyright Reis Can and contributors, distributed under GPL-3.0-only. Original source and notices are preserved in upstream/. New LSPTube code and artwork are distributed under GPL-3.0-only.
 
 The application bundles third-party dependencies under their respective licenses. This inventory includes the exact release-locked standalone dependencies and the preserved DIAL source dependency tree. The historical DIAL bundle may use other versions; its original source and notices are retained. See docs/DEVELOPMENT.md for the reproducibility boundary.

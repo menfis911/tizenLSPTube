@@ -6,11 +6,12 @@ func polygon(_ points: [(CGFloat,CGFloat)], _ color:NSColor) { color.setFill();l
 for (name,width,height) in [("icon.png",1024,1024),("icon_16b9.png",1920,1080)] {
  let bitmap=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:width,pixelsHigh:height,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
  NSGraphicsContext.saveGraphicsState();NSGraphicsContext.current=NSGraphicsContext(bitmapImageRep:bitmap)
- color(16,41,47).setFill();NSRect(x:0,y:0,width:width,height:height).fill()
+ color(24,33,40).setFill();NSRect(x:0,y:0,width:width,height:height).fill()
  let transform=NSAffineTransform();let scale=CGFloat(height)/1024;transform.translateX(by:(CGFloat(width)-CGFloat(height))/2,yBy:0);transform.scale(by:scale);transform.concat()
- polygon([(256,744),(384,744),(384,408),(640,408),(640,280),(256,280)],color(98,226,206))
- polygon([(460,744),(460,472),(760,608)],color(98,226,206))
- polygon([(512,668),(512,548),(644,608)],color(16,41,47))
+ color(244,240,230).setStroke();let ring=NSBezierPath(ovalIn:NSRect(x:238,y:238,width:548,height:548));ring.lineWidth=62;ring.stroke()
+ color(255,179,77).setFill();NSBezierPath(ovalIn:NSRect(x:342,y:342,width:340,height:340)).fill()
+ color(24,33,40).setFill();NSBezierPath(ovalIn:NSRect(x:414,y:412,width:340,height:340)).fill()
+ color(255,179,77).setFill();NSBezierPath(ovalIn:NSRect(x:654,y:658,width:88,height:88)).fill()
  NSGraphicsContext.restoreGraphicsState()
  try bitmap.representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("assets/"+name))
 }

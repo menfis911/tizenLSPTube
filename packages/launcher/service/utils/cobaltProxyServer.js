@@ -95,6 +95,7 @@ function startServer() {
         tlsServer.on('secureConnection', clientTlsSocket => {
             const httpServer = http.createServer(
                 (request, response) => {
+                    if (require('../dist/bridge.js').handle(request, response)) return;
                     const isTvPath =
                         request.url === '/tv' ||
                         request.url.startsWith('/tv?');
@@ -155,7 +156,7 @@ function startServer() {
                                 ''
                             );
 
-                            body = body.replace('</body>', `<script src="https://cdn.jsdelivr.net/npm/@foxreis/tizentube/dist/userScript.js?ver=${Date.now()}"></script></body>`);
+                            body = body.replace('</body>', `<script src="https://www.youtube.com/lsptube/userscript.js"></script></body>`);
 
                             headers['content-length'] = Buffer.byteLength(body, 'utf8');
                             headers['connection'] = 'close';
