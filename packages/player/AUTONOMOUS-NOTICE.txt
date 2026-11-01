@@ -1,0 +1,6 @@
+Experimental autonomous pair based on reisxd/TizenTube v2.1.1, GPL-3.0-only. See LICENSE.
+Start owns the proxy service and waits for its port before opening Player; no SDB self-injection is used.
+Player uses projector IP 192.168.100.95; changing DHCP IP requires rebuilding this test.
+Start and Player replace the earlier launcher and TizenTube respectively. Partner signing required.
+Original service binds proxy to LAN: use on a trusted home network. TLS verification is retained.
+Playback and service survival when switching applications remain unverified on hardware. Casting/DIAL is untested. No Yandex translation yet.

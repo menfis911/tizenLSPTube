@@ -1,0 +1,5 @@
+Experimental Freestyle test, based on reisxd/TizenTube, GPL-3.0-only.
+LAN build uses fixed projector IP 192.168.100.95. If DHCP changes it, this package requires rebuilding.
+Launcher is a separate app; it requests the original service, waits 12 seconds, then requests the original Cobalt app. Success callbacks do not prove service readiness.
+No DNS changes, no certificate-validation bypass. Partner signing required. Existing proxy listens on LAN; use a trusted home network.
+Playback and launcher compatibility with Tizen 6.5 remain unverified.

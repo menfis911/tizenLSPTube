@@ -1,0 +1,52 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>TizenTube Test</title>
+<style>body{background:#111;color:white;font:28px sans-serif;margin:50px}pre{white-space:pre-wrap;font:23px monospace}button{padding:16px;font-size:28px}button:focus{outline:4px solid cyan}</style>
+<h1>TizenTube Test 2.1.6 — этапы загрузки</h1><pre id="log">Запуск сетевой службы…</pre><pre id="trace"></pre>
+<button id="open">Открыть YouTube через исправленный прокси</button>
+<script>
+(function () {
+ var log = document.getElementById('log');
+ var url = 'http://127.0.0.1:8100/tv?additionalDataUrl=http%3A%2F%2Flocalhost%3A8095%2Fdial%2Fapps%2FYouTube';
+ function line(text) { log.textContent += '\n' + text; }
+ var pageRequested = false;
+ var healthStarted = Date.now();
+ document.getElementById('open').onclick = function () { location.href = url; };
+ document.getElementById('open').focus();
+ window.onerror = function (message) { line('Ошибка страницы: ' + message); };
+ function probe() {
+  var xhr = new XMLHttpRequest(); xhr.open('GET', url); xhr.timeout = 20000;
+  xhr.onload = function () { line('Страница YouTube: HTTP ' + xhr.status + ', символов ' + xhr.responseText.length);
+   if (xhr.status === 200) line('Выберите кнопку ниже. Если видео не запустится, это отдельный результат проверки.');
+   else line('Ответ: ' + xhr.responseText.slice(0, 250)); };
+  xhr.onerror = xhr.ontimeout = function () {
+   line('Запрос страницы YouTube не завершился. Состояние службы показано выше.');
+  }; xhr.send();
+ }
+ function health(attempt) {
+  var xhr = new XMLHttpRequest(); xhr.open('GET', 'http://127.0.0.1:18103/health'); xhr.timeout = 6000;
+  xhr.onload = function () {
+   try {
+    if (xhr.status !== 200) throw new Error('HTTP ' + xhr.status);
+    var state = JSON.parse(xhr.responseText);
+    document.getElementById('trace').textContent = JSON.stringify(state, null, 2);
+    if (state.proxy8100 === 'open') {
+     if (!pageRequested) { pageRequested = true; line('Прокси отвечает по TCP. Проверяем YouTube…'); probe(); }
+     if (Date.now() - healthStarted < 45000) setTimeout(function () { health(1); }, 3000);
+    }
+    else if (attempt < 3 && state.phase !== 'failed') setTimeout(function () { health(attempt + 1); }, 2000);
+    else line('Порт прокси закрыт. Сфотографируйте этот экран.');
+   } catch (error) { line('Ответ диагностики: ' + error.message); }
+  };
+  xhr.onerror = xhr.ontimeout = function () {
+   if (attempt < 3) setTimeout(function () { health(attempt + 1); }, 2000);
+   else line('Даже диагностическая служба недоступна по loopback. Сфотографируйте экран.');
+  }; xhr.send();
+ }
+ try {
+  var id = tizen.application.getCurrentApplication().appInfo.packageId + '.StandaloneService';
+  tizen.application.launchAppControl(new tizen.ApplicationControl('http://tizen.org/appcontrol/operation/service'), id,
+   function () { line('Запуск службы принят. Проверяем саму службу…'); setTimeout(function () { health(1); }, 2000); },
+   function (error) { line('Ошибка службы: ' + error.name + ': ' + error.message); });
+ } catch (error) { line(error.message); }
+ document.addEventListener('keydown', function (e) { if (e.keyCode === 10009) tizen.application.getCurrentApplication().exit(); });
+}());
+</script></html>
