@@ -1,6 +1,6 @@
 # Changes
 
-## 0.2.0 — 2026-11-01
+## 0.2.1 — 2026-11-01
 
 - Establish independent LSPTube repository with preserved TizenTube v2.1.1 sources and attribution.
 - Brand the working two-package autonomous architecture; add original projection/play icon.

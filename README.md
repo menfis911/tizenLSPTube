@@ -36,7 +36,7 @@ node tests/test-https.cjs
 python3 scripts/build.py --projector-ip 192.168.100.95
 ```
 
-Результат: `dist/LSPTube-0.2.0.wgt`, `dist/LSPTube-Engine-0.2.0.wgt`, `dist/LSPTube-0.2.0-install.zip` и контрольные суммы. Пакеты не содержат сертификатов и не устанавливаются автоматически.
+Результат: `dist/LSPTube-0.2.1.wgt`, `dist/LSPTube-Engine-0.2.1.wgt`, `dist/LSPTube-0.2.1-install.zip` и контрольные суммы. Пакеты не содержат сертификатов и не устанавливаются автоматически.
 
 Проверенная исходная пара сохранена в Git-теге `baseline-working-2026-11-01` и в истории исходников. Происхождение компонентов, способ пересборки сетевой службы и границы воспроизводимости описаны в [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
