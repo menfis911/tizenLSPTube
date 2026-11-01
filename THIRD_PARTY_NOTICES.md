@@ -139,3 +139,7 @@ The application bundles third-party dependencies under their respective licenses
 | ws@3.3.3 | MIT | [ws_3.3.3-LICENSE](licenses/ws_3.3.3-LICENSE), [ws_3.3.3-package.json](licenses/ws_3.3.3-package.json) |
 | xml2js@0.6.2 | MIT | [xml2js_0.6.2-LICENSE](licenses/xml2js_0.6.2-LICENSE), [xml2js_0.6.2-package.json](licenses/xml2js_0.6.2-package.json) |
 | xmlbuilder@11.0.1 | MIT | [xmlbuilder_11.0.1-LICENSE](licenses/xmlbuilder_11.0.1-LICENSE), [xmlbuilder_11.0.1-package.json](licenses/xmlbuilder_11.0.1-package.json) |
+
+## Typography
+
+PT Sans by ParaType is distributed under SIL Open Font License 1.1. Original font and license: assets/fonts/. The same license is shipped with the launcher.

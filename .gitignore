@@ -6,3 +6,6 @@ dist/
 *.pem
 *.key
 .env*
+
+__pycache__/
+*.pyc

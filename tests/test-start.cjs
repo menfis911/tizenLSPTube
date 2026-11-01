@@ -6,7 +6,7 @@ for(const mode of ['ready','closed','failed','launch-error']){
  vm.runInNewContext(code,{document:{getElementById(id){return elements[id]},addEventListener(){}},Date,XMLHttpRequest:XHR,setTimeout(fn){retry=fn},tizen:{ApplicationControl:function(){},application:{getCurrentApplication(){return {appInfo:{packageId:'TTLaunch01'}}},launchAppControl(c,id,ok,fail){assert.equal(id,'TTLaunch01.StandaloneService');if(mode==='launch-error')fail({name:'Denied',message:'service'});else ok()},launch(id,ok){assert.equal(id,'xvvl3S1TT1.TizenTubeStandalone');launches++;ok()}}}});
  assert.equal(launches,mode==='ready'?1:0);
  if(mode==='closed')assert.equal(typeof retry,'function');
- if(mode==='failed')assert.match(elements.status.textContent,/ошибку/);
- if(mode==='launch-error')assert.match(elements.status.textContent,/Denied/);
+ if(mode==='failed')assert.match(elements.status.textContent,/ошиб/);
+ if(mode==='launch-error')assert.match(elements.state.textContent,/Denied/);
 }
 console.log('PASS: own-package service, readiness gate, retry, service errors prevent Player launch');
