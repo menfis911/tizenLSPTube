@@ -1,5 +1,13 @@
 # Changes
 
+## 0.3.0 — single-app preview
+
+- One WGT with owned web proxy and player page; no separate Engine launch, SDB injection or fixed projector IP.
+- TV user-agent for upstream requests, verified to return the TV page on Mac.
+- Locally compiled TizenTube enhancements with corrected localhost port; no runtime CDN dependency for the main script.
+- New amber lens icon.
+- Hardware playback, codecs, remote interaction, origin-dependent BotGuard and endurance remain unverified.
+
 ## 0.2.1 — 2026-11-01
 
 - Establish independent LSPTube repository with preserved TizenTube v2.1.1 sources and attribution.

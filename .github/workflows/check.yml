@@ -15,8 +15,11 @@ jobs:
           python-version: '3.12'
       - run: node tests/test-start.cjs
       - run: node tests/test-https.cjs
+      - run: node tests/test-single.cjs
+      - run: node tests/integration-single.cjs
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
       - run: python3 scripts/build.py
+      - run: python3 scripts/build.py --single
       - uses: actions/upload-artifact@v4
         with:
           name: LSPTube-unsigned

@@ -38,3 +38,13 @@ Never commit signing certificates, device-profile XML, OAuth tokens or passwords
 ## Validation limits
 
 User-observed baseline: launch and TizenTube settings on SP-LSP3BLAXCE / Tizen 6.5 / firmware 1720.7. No measured endurance, account-login, casting, memory-pressure or multi-model certification. Branded builds are unverified until installed and checked on that projector.
+
+## Single-app experimental branch (0.3.0)
+
+This is an alternative web player, not a one-package Cobalt dispatcher. packages/single has one web application plus its owned service, no native Cobalt metadata and no invocation of a separate Player. The launcher navigates within its own web runtime to localhost:8100. The proxy sends a TV User-Agent upstream and serves locally compiled enhancements at /lsptube/userscript.js. The enhancements use the same port, fixing the historical 8099/8100 mismatch. Unused Cobalt/DIAL startup is disabled; no SDB self-injection or fixed LAN IP is required.
+
+Editable enhancements: src/mods (upstream snapshot with port and branding changes), exact lock: src/mods/package-lock.json. sh scripts/build-userscript.sh compiles the script; python3 scripts/build.py --single creates one unsigned WGT. Original attribution and dependency notices are retained.
+
+Mac network integration verifies the exact local script is served and a TV page is returned with local script injection. It does not verify Tizen WRT video/codecs, login, BotGuard after sustained playback or remote controls. Working Cobalt pair remains on main; test before removing Engine.
+
+The initial single-app build-tool dependency audit reports advisories in Babel's SystemJS transform, Browserslist, Picomatch, Rollup and serialize-javascript. These are the build toolchain, not the projector's HTTP service; only trusted checked-in sources are compiled. A toolchain major-version migration is intentionally separate from the hardware compatibility test. No audit-driven forced upgrades were applied silently.

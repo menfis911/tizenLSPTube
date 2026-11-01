@@ -30,4 +30,17 @@ class BuildTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as output:
             with self.assertRaises(ValueError): builder.build('not-an-ip', Path(output))
 
+    def test_single_is_one_self_contained_wgt(self):
+        with tempfile.TemporaryDirectory() as output:
+            files = builder.build('192.168.1.42', Path(output), single=True)
+            self.assertEqual(len(files), 1)
+            with zipfile.ZipFile(files[0]) as archive:
+                config = archive.read('config.xml').decode()
+                self.assertNotIn('/metadata/nativeID', config)
+                self.assertNotIn('--proxy=', config)
+                self.assertIn('TTLaunch01.StandaloneService', config)
+                self.assertIn('service/dist/userscript.js', archive.namelist())
+                self.assertNotIn('localhost:8099', archive.read('service/dist/userscript.js').decode())
+                self.assertNotIn('tizen.application.launch(', archive.read('web-player.js').decode())
+
 if __name__ == '__main__': unittest.main()
