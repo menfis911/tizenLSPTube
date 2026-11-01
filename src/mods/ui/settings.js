@@ -8,6 +8,7 @@ const qrcodes = {};
 
 export default function modernUI(update, parameters) {
     const settings = [
+        { name: 'Проверка звука перевода', icon: 'INFO', value: null, options: [], action: {customAction: {action: 'LSP_TRANSLATE_STATUS'}} },
         { name: 'Перевод на русский · вкл. / выкл.', subtitle: 'Яндекс получает ссылку на текущий ролик', icon: 'LANGUAGE', value: null, options: [], action: {customAction: {action: 'LSP_TRANSLATE'}} },
         {
             name: t('settings.supportTT.title'),

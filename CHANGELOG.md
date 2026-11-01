@@ -1,5 +1,13 @@
 # Changes
 
+## 0.4.2 preview — 2026-11-01
+
+- Make the 20-second audio startup deadline independent of video readiness and the synchronization loop.
+- Keep cleanup errors from hiding diagnostics; remove media through parentNode.removeChild for Cobalt compatibility.
+- Display diagnostics directly above the player without YouTube command routing. Add a manual audio-check button in playback and LSPTube settings.
+- Report video readiness/paused/seeking, YouTube playing state, media events and synchronization call count. No signed media URLs are shown.
+- This is a diagnostic repair for the reported silent startup; translated audio on the Freestyle is not yet verified.
+
 ## 0.4.1 preview — 2026-11-01
 
 - Fix premature translation success: a received URL or resolved/void play() result no longer counts as playback. Confirm only after the audio clock advances in sync with video.

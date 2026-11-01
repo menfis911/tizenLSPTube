@@ -1,10 +1,11 @@
 import { createTranslationController } from './translationController.js';
-import { showToast, showModal, overlayPanelItemListRenderer, overlayMessageRenderer } from '../ui/ytUI.js';
+import { showToast } from '../ui/ytUI.js';
+import showTranslationDiagnostics from '../ui/translationDiagnostics.js';
 
 const translation = createTranslationController({
     current() {
         const player = document.querySelector('.html5-video-player');
-        const video = document.querySelector('video');
+        const video = (player && player.querySelector('video')) || document.querySelector('video');
         const data = player && player.getVideoData ? player.getVideoData() : null;
         return video && data ? { video, id: data.video_id, live: data.isLive || data.isLiveContent } : null;
     },
@@ -31,11 +32,15 @@ const translation = createTranslationController({
         document.body.appendChild(audio); return audio;
     },
     diagnose(message, details) {
-        showModal({ title: message, subtitle: 'LSPTube 0.4.1 · проверка звука' },
-            overlayPanelItemListRenderer(details.split('\n').map(line => overlayMessageRenderer(line))),
-            'lsp-translation-audio-error');
+        try {
+            const player = document.querySelector('.html5-video-player');
+            const state = player && player.getPlayerStateObject ? player.getPlayerStateObject() : null;
+            details += '\nYouTube isPlaying: ' + (state ? state.isPlaying : 'нет данных') +
+                '; видеоэлементов: ' + document.querySelectorAll('video').length;
+        } catch (_) {}
+        showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.4.1 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.4.2 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;

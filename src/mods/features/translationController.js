@@ -1,5 +1,12 @@
 export function createTranslationController({ current, request, createAudio, notify, diagnose }) {
     let run = null;
+    let lastDetails = 'Перевод ещё не запускался';
+    function release(audio) {
+        for (const action of [() => audio.pause(), () => audio.removeAttribute('src'), () => audio.load(),
+            () => { if (audio.parentNode) audio.parentNode.removeChild(audio); }]) {
+            try { action(); } catch (_) { /* Cleanup must not hide the playback error. */ }
+        }
+    }
     function restore(s) {
         if (s.lowered !== null && Math.abs(s.video.volume - s.lowered) < 0.001) s.video.volume = s.volume;
         s.lowered = null;
@@ -7,11 +14,12 @@ export function createTranslationController({ current, request, createAudio, not
     function stop(message) {
         const s = run; run = null;
         if (s) {
-            clearTimeout(s.poll); clearInterval(s.clock);
-            if (s.cancel) s.cancel();
-            if (s.audio) { s.audio.pause(); s.audio.removeAttribute('src'); s.audio.load(); s.audio.remove(); }
-            s.events.forEach(([name, fn]) => s.video.removeEventListener(name, fn));
+            lastDetails = details(s);
+            clearTimeout(s.poll); clearTimeout(s.watchdog); clearInterval(s.clock);
             restore(s);
+            if (s.cancel) { try { s.cancel(); } catch (_) {} }
+            if (s.audio) release(s.audio);
+            s.events.forEach(([name, fn]) => { try { s.video.removeEventListener(name, fn); } catch (_) {} });
         }
         if (message) notify(message);
     }
@@ -19,26 +27,32 @@ export function createTranslationController({ current, request, createAudio, not
         const now = current();
         return run === s && now && now.id === s.id && now.video === s.video;
     }
-    function fail(s, message) {
-        if (!same(s)) return;
+    function details(s) {
         const a = s.audio;
         let mp3 = 'нет метода';
         try { if (a && a.canPlayType) mp3 = a.canPlayType('audio/mpeg') || 'не заявлен'; }
         catch (_) { mp3 = 'ошибка проверки'; }
-        const details = a ? [
+        return a ? [
             'Элемент: ' + (a.tagName || 'audio'),
             'MP3: ' + mp3,
             'readyState: ' + a.readyState + '; networkState: ' + a.networkState,
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
+            'Видео paused: ' + s.video.paused + '; seeking: ' + s.video.seeking + '; readyState: ' + s.video.readyState,
+            'Вызовов синхронизации: ' + s.ticks,
             'События: ' + s.mediaEvents.join(' → ')
         ].join('\n') : 'Аудиоплеер не создан';
-        stop(message);
-        if (diagnose) diagnose(message, details);
+    }
+    function fail(s, message) {
+        if (run !== s) return;
+        stop();
+        if (diagnose) diagnose(message, lastDetails);
+        notify(message);
     }
     function sync(s) {
         if (!same(s)) { if (run === s) stop(); return; }
         try {
+            s.ticks++;
             const v = s.video, a = s.audio;
             if (v.ended) { stop(); return; }
             if (!a) return;
@@ -60,6 +74,7 @@ export function createTranslationController({ current, request, createAudio, not
                 s.silentFor = 0;
                 if (!s.confirmed) {
                     s.confirmed = true;
+                    clearTimeout(s.watchdog);
                     notify(s.partial ? 'Включён перевод первой части. Остальное готовится' : 'Перевод на русский включён');
                 }
                 if (s.lowered === null) {
@@ -93,9 +108,12 @@ export function createTranslationController({ current, request, createAudio, not
             if (result.error) throw new Error(result.error);
             // Keep playing a partial track even if polling renews its signed URL.
             if (result.url && (!s.audio || (s.partial && !result.partial))) {
-                if (s.audio) { s.audio.pause(); restore(s); s.audio.removeAttribute('src'); s.audio.load(); s.audio.remove(); }
+                if (s.audio) { restore(s); release(s.audio); }
+                clearTimeout(s.watchdog);
                 const a = s.audio = createAudio(); s.partial = result.partial;
                 s.mediaEvents = []; s.lastSync = Date.now(); s.silentFor = 0; s.lastAudioTime = null; s.confirmed = false;
+                // Independent of video readiness, play() promises and the synchronization loop.
+                s.watchdog = setTimeout(() => { if (run === s && !s.confirmed) fail(s, 'Аудио перевода не запустилось за 20 секунд'); }, 20000);
                 ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'error'].forEach(name => {
                     a.addEventListener(name, () => { s.mediaEvents.push(name); if (s.mediaEvents.length > 8) s.mediaEvents.shift(); });
                 });
@@ -112,6 +130,7 @@ export function createTranslationController({ current, request, createAudio, not
     }
     return {
         active: () => !!run,
+        inspect() { if (diagnose) diagnose('Проверка звука перевода', run ? details(run) : lastDetails); },
         stop,
         toggle() {
             if (run) { stop('Перевод выключен'); return; }
@@ -120,7 +139,7 @@ export function createTranslationController({ current, request, createAudio, not
                 now.video.duration <= 0 || now.video.duration > 14400 || now.live) {
                 notify('Откройте обычный ролик длительностью до 4 часов'); return;
             }
-            const s = run = { ...now, events: [], started: Date.now(), lowered: null, volume: now.video.volume };
+            const s = run = { ...now, events: [], started: Date.now(), lowered: null, volume: now.video.volume, ticks: 0 };
             ['pause', 'play', 'seeking', 'seeked', 'ratechange', 'waiting', 'playing', 'ended'].forEach(name => {
                 const fn = () => sync(s); s.events.push([name, fn]); s.video.addEventListener(name, fn);
             });

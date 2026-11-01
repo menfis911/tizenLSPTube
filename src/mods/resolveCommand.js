@@ -83,6 +83,10 @@ export function patchResolveCommand() {
                     // Patch the playback settings popup to use TizenTube speed settings
                     const items = cmd.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
                     items.unshift(buttonItem(
+                        { title: 'Проверка звука перевода' }, { icon: 'INFO' },
+                        [{ customAction: { action: 'LSP_TRANSLATE_STATUS' } }]
+                    ));
+                    items.unshift(buttonItem(
                         { title: translation.active() ? 'Выключить перевод на русский' : 'Перевести на русский', subtitle: 'Яндекс · голосовой перевод' },
                         { icon: 'LANGUAGE' }, [{ customAction: { action: 'LSP_TRANSLATE' } }]
                     ));
@@ -200,6 +204,10 @@ export function patchResolveCommand() {
 }
 
 function customAction(action, parameters) {
+    if (action === 'LSP_TRANSLATE_STATUS') {
+        resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
+        translation.inspect(); return;
+    }
     if (action === 'LSP_TRANSLATE') {
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
         translation.toggle(); return;
