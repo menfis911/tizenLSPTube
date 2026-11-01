@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import tarfile
+import io
 import unittest
 import zipfile
 
@@ -32,6 +34,13 @@ class BuildTest(unittest.TestCase):
                 self.assertIn("require('./bridge.js').handle(request, response)", bundle)
                 self.assertIn('https://www.youtube.com/lsptube/userscript.js', bundle)
                 self.assertEqual(z.read('icon.png'), (builder.ROOT / 'assets/icon.png').read_bytes())
+                with tarfile.open(fileobj=io.BytesIO(z.read('licenses/mpg123-decoder-corresponding-source.tar.gz'))) as source:
+                    names = source.getnames()
+                    self.assertIn('decoder-source/modules/mpg123/src/libmpg123/layer3.c', names)
+                    self.assertIn('decoder-source/modules/mpg123/COPYING', names)
+                    self.assertIn('decoder-source/Makefile', names)
+                    self.assertIn('decoder-source/LSPTube-SOURCE.md', names)
+                    self.assertFalse(any('/.git/' in name or name.startswith('/') or '..' in name.split('/') for name in names))
     def test_invalid_ip_rejected(self):
         with tempfile.TemporaryDirectory() as output:
             with self.assertRaises(ValueError): builder.build('not-an-ip', Path(output))

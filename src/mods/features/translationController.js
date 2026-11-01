@@ -36,7 +36,7 @@ export function createTranslationController({ current, request, createAudio, not
         const phase = 'Этап: ' + s.phase + (s.lastError ? '\nПричина: ' + s.lastError : '');
         return phase + '\n' + (a ? [
             'Элемент: ' + (a.tagName || 'audio'),
-            'MP3: ' + mp3,
+            'Формат: ' + mp3,
             'readyState: ' + a.readyState + '; networkState: ' + a.networkState,
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
@@ -87,7 +87,7 @@ export function createTranslationController({ current, request, createAudio, not
             } else {
                 s.silentFor += elapsed;
                 if (a.paused || a.readyState < 3 || s.silentFor >= 1500) restore(s);
-                if (s.silentFor >= 20000) { fail(s, 'Аудио перевода не воспроизводится'); return; }
+                if (s.confirmed && s.silentFor >= 20000) { fail(s, 'Аудио перевода не воспроизводится'); return; }
             }
             if (a.paused && !s.playing) {
                 s.playing = true;
@@ -116,14 +116,15 @@ export function createTranslationController({ current, request, createAudio, not
                 s.phase = 'Создание аудиоплеера';
                 if (s.audio) { restore(s); release(s.audio); }
                 clearTimeout(s.watchdog);
-                const a = s.audio = createAudio(); s.partial = result.partial;
+                const a = s.audio = createAudio(s.video.currentTime); s.partial = result.partial;
                 s.mediaEvents = []; s.lastSync = Date.now(); s.silentFor = 0; s.lastAudioTime = null; s.confirmed = false;
                 // Independent of video readiness, play() promises and the synchronization loop.
-                s.watchdog = setTimeout(() => { if (run === s && !s.confirmed) fail(s, 'Аудио перевода не запустилось за 20 секунд'); }, 20000);
+                s.watchdog = setTimeout(() => { if (run === s && !s.confirmed) fail(s, 'PCM-звук не запустился за 60 секунд'); }, 60000);
                 ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'error'].forEach(name => {
                     a.addEventListener(name, () => { s.mediaEvents.push(name); if (s.mediaEvents.length > 8) s.mediaEvents.shift(); });
                 });
-                a.onerror = () => { if (same(s) && s.audio === a) fail(s, 'Не удалось загрузить аудио перевода'); };
+                a.onerror = () => { if (same(s) && s.audio === a) fail(s,
+                    'Не удалось загрузить аудио перевода' + (a.error && a.error.message ? ': ' + a.error.message : '')); };
                 a.onended = () => { if (same(s) && s.audio === a && !s.video.ended) stop('Эта часть видео ещё не переведена. Попробуйте позже'); };
                 a.onloadedmetadata = () => { if (same(s) && s.audio === a) sync(s); };
                 a.onwaiting = () => { if (same(s) && s.audio === a) restore(s); };

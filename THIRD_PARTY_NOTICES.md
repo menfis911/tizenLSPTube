@@ -1,5 +1,14 @@
 # Third-party notices
 
+## PCM audio additions in 0.5.0
+
+- mpg123-decoder 1.0.3 and @wasm-audio-decoders/common 9.0.7: Ethan Halsall, MIT; upstream commit `8f2428c1cd96b54dab74836c8471ff75fe35cbee`. Standard permission text: [MIT](licenses/wasm-audio-decoders-MIT.txt); original declarations and source are preserved in the source archive.
+- Embedded libmpg123: Michael Hipp and others, LGPL 2.1; commit `08247b317163175e62035893af3ff9e71a5dfefd`. [Original copying terms](licenses/libmpg123-LGPL-2.1.txt), AUTHORS and complete library/wrapper build sources are included in [corresponding source](licenses/mpg123-decoder-corresponding-source.tar.gz). LSPTube integration is modified; upstream C/JS decoder sources are preserved unmodified.
+- puff 2.3: Mark Adler, zlib-style terms; [original notice](licenses/puff-zlib-notice.txt), source and build glue in the source archive.
+- simple-yenc 1.0.4: Ethan Halsall, [MIT](licenses/simple-yenc-1.0.4-MIT.txt); its CRC32 implementation references GCC libiberty, whose [notice and linking permission](licenses/simple-yenc-CRC32-notice.txt) are preserved. Full source is in the archive.
+- Emscripten 4.0.7 generated runtime: [MIT/University of Illinois license and third-party notices](licenses/emscripten-4.0.7-LICENSE.txt).
+- This build includes only synchronous decoding. Web-worker dependencies listed in the npm dependency tree are not linked into the runtime. Rebuilding/relinking instructions are in `decoder-source/LSPTube-SOURCE.md` inside the source archive and docs/DEVELOPMENT.md.
+
 ## LSPTube 0.4.0 additions
 
 - Yandex protocol and generated protobuf definitions: FOSWLY/vot.js 3.2.1, Toil and contributors, commit `9f7220c4af4df92f0df39805a1a47cc52d0323f2`, MIT. See [MIT license](licenses/vot.js-MIT.txt) and [source provenance](src/vot/vendor/README.md). The transport and playback integration are LSPTube modifications.

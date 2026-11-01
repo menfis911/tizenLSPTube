@@ -1,6 +1,8 @@
 import { createTranslationController } from './translationController.js';
 import { showToast } from '../ui/ytUI.js';
 import showTranslationDiagnostics from '../ui/translationDiagnostics.js';
+import { createPcmAudio } from './pcmAudio.js';
+let audioContext;
 
 const translation = createTranslationController({
     current() {
@@ -25,11 +27,13 @@ const translation = createTranslationController({
         });
         return { promise, cancel: () => xhr.abort() };
     },
-    createAudio() {
-        const audio = document.createElement('audio');
-        if (typeof audio.play !== 'function') throw new Error('Аудиоплеер не поддерживается');
-        audio.setAttribute('aria-hidden', 'true'); audio.preload = 'auto'; audio.volume = 1;
-        document.body.appendChild(audio); return audio;
+    createAudio(position) {
+        if (!audioContext) {
+            const Context = window.AudioContext || window.webkitAudioContext;
+            if (!Context) throw new Error('Web Audio не поддерживается');
+            audioContext = new Context();
+        }
+        return createPcmAudio(audioContext, position);
     },
     diagnose(message, details) {
         try {
@@ -40,7 +44,7 @@ const translation = createTranslationController({
         } catch (_) {}
         showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.4.3 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.5.0 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;

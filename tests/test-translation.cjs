@@ -43,7 +43,7 @@ async function main() {
     assert(!messages.some(message => message.includes('на русский включён')));
     await advance(); assert.equal(audio.currentTime, 12.5); assert.equal(video.volume, .12);
     assert(messages.some(message => message.includes('на русский включён')));
-    assert(!Array.from(timers.values()).some(timer => timer.delay === 20000), 'confirmed audio must cancel the startup watchdog');
+    assert(!Array.from(timers.values()).some(timer => timer.delay === 60000), 'confirmed audio must cancel the startup watchdog');
     video.paused = true; tick(); assert(audio.paused); assert.equal(video.volume, .8);
     video.currentTime = 50; video.paused = false; video.playbackRate = 1.5;
     tick(); await settle(); assert.equal(audio.currentTime, 50); assert.equal(audio.playbackRate, 1.5);
@@ -71,11 +71,13 @@ async function main() {
     controller.toggle(); resolveRequest({status: 1, url: 'https://storage.yandexcloud.net/unloaded'}); await settle();
     assert(startedWithoutMetadata, 'play must be called before metadata to avoid a preload deadlock');
     for (let i = 0; i < 21; i++) { now += 1000; tick(); }
+    assert(controller.active()); fireTimer(60000);
     assert(!controller.active()); assert.equal(video.volume, .8);
     assert(diagnostics[0].details.includes('readyState: 0'));
     controller.toggle(); resolveRequest({status: 1, url: 'https://storage.yandexcloud.net/stationary'}); await settle();
     const successes = messages.filter(message => message.includes('на русский включён')).length;
     for (let i = 0; i < 21; i++) { now += 1000; tick(); }
+    assert(controller.active()); fireTimer(60000);
     assert(!controller.active()); assert.equal(video.volume, .8);
     assert.equal(messages.filter(message => message.includes('на русский включён')).length, successes);
     assert(diagnostics[1].details.includes('readyState: 4'));
@@ -83,7 +85,7 @@ async function main() {
     video = media(); video.readyState = 2; video.paused = true;
     controller.toggle(); resolveRequest({status: 1, url: 'https://storage.yandexcloud.net/blocked'}); await settle();
     audio.load = () => { throw new Error('cleanup load failed'); };
-    fireTimer(20000);
+    fireTimer(60000);
     assert(!controller.active()); assert(audio.removed); assert.equal(video.volume, .8);
     assert(diagnostics[2].details.includes('Видео paused: true'));
     const beforeInspect = diagnostics.length; controller.inspect();

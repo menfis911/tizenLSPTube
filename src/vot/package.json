@@ -1,1 +1,1 @@
-{"name":"lsptube-vot-build","private":true,"scripts":{"build":"node build.cjs"},"dependencies":{"@bufbuild/protobuf":"2.10.0"},"devDependencies":{"esbuild":"0.25.12"}}
+{"name":"lsptube-vot-build","private":true,"scripts":{"build":"node build.cjs"},"dependencies":{"@bufbuild/protobuf":"2.10.0","mpg123-decoder":"1.0.3"},"devDependencies":{"esbuild":"0.25.12"}}

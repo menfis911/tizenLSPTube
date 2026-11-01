@@ -1,5 +1,7 @@
 import { createClient } from './client.js';
 export { createClient } from './client.js';
+import { createPcmStore } from './pcm.js';
+export { createPcmStore } from './pcm.js';
 const https = require('./compat-https.js');
 
 function request(path, body, headers, method = 'POST') {
@@ -37,14 +39,30 @@ function request(path, body, headers, method = 'POST') {
 
 export function makeHandler(translate = createClient(request)) {
     const jobs = new Map();
+    const pcm = createPcmStore();
     return function handle(req, res) {
-        if (!req.url.startsWith('/lsptube/vot')) return false;
+        if (!req.url.startsWith('/lsptube/vot') && !req.url.startsWith('/lsptube/pcm')) return false;
         function send(code, data) {
             if (res.destroyed) return;
             res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
             res.end(JSON.stringify(data));
         }
         const url = new URL(req.url, 'https://www.youtube.com');
+        if (url.pathname === '/lsptube/pcm') {
+            const token = url.searchParams.get('token') || '', index = Number(url.searchParams.get('chunk'));
+            if (req.method !== 'GET' || req.headers['x-lsptube'] !== '1' || !/^[a-f0-9]{32}$/.test(token) ||
+                !Number.isInteger(index) || index < 0 || index >= 1440) {
+                send(400, {error: 'Некорректный запрос аудио'}); return true;
+            }
+            pcm.read(token, index).then(part => {
+                if (res.destroyed) return;
+                res.writeHead(200, {'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store',
+                    'X-LSP-Frames': String(part.frames), 'X-LSP-Rate': String(part.sampleRate),
+                    'X-LSP-End': part.ended ? '1' : '0'});
+                res.end(part.data);
+            }, error => send(502, {error: error.message}));
+            return true;
+        }
         const id = url.searchParams.get('id'), duration = Number(url.searchParams.get('duration'));
         const language = url.searchParams.get('lang') || 'en';
         if (req.method !== 'GET' || req.headers['x-lsptube'] !== '1' || url.pathname !== '/lsptube/vot' ||
@@ -63,7 +81,14 @@ export function makeHandler(translate = createClient(request)) {
             }).catch(error => { jobs.delete(key); throw error; });
             jobs.set(key, job);
         }
-        job.promise.then(data => send(200, data), error => send(502, { error: error.message }));
+        job.promise.then(data => {
+            const result = {...data};
+            if (data.url) {
+                const token = pcm.register(data.url, id, !!data.partial);
+                result.url = '/lsptube/pcm?token=' + token;
+            }
+            send(200, result);
+        }, error => send(502, { error: error.message }));
         return true;
     };
 }

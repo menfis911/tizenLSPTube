@@ -1,5 +1,13 @@
 # Changes
 
+## 0.5.0 preview — 2026-11-01
+
+- Replace native MP3 playback, rejected with MEDIA_ERR_SRC_NOT_SUPPORTED on the Freestyle, with service-side MP3 decoding and chunked PCM through Cobalt Web Audio.
+- Use mpg123-decoder 1.0.3 on Node 12; no Mac transcoder, external relay, native executable or video-player replacement.
+- Serve 10-second mono PCM buffers at 48 kHz using opaque tokens. Bound compressed audio to 64 MiB and the decoded cache to three chunks; clear idle PCM after two minutes.
+- Crop buffers and use start(0), respecting Cobalt 22 limitations. Resample via AudioBuffer sample rate for speed changes. Support pause, seeking, mute, cancellation and chunk handoff. Allow up to 60 seconds for initial download/decode.
+- Preserve decoder/library licenses and corresponding source in the packages. Real Node-12 checks cover a decoded signal and forward/backward seeking; actual Freestyle output remains to be verified.
+
 ## 0.4.3 preview — 2026-11-01
 
 - On a signed Yandex API request rejected with HTTP 403, refresh the session and retry once. Persistent denials are still reported; no proxy, account or TLS bypass is introduced.

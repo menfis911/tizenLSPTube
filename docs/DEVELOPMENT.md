@@ -15,7 +15,7 @@
 
 `src/vot/vendor` preserves the MIT-licensed protocol schema, generated code and public browser configuration at the documented revision. Node's crypto replaces WebCrypto; the existing verified-TLS transport replaces modern fetch/Blob dependencies. Only validated YouTube IDs and durations reach Yandex. Responses are bounded, requests have deadlines, duplicate requests share one promise, and ready audio must use HTTPS on Yandex domains. No OAuth tokens, worker or local Mac service are used.
 
-The playback controller has an explicit lifetime per video. Cancellation invalidates pending responses; pause, seeking, speed changes, errors and navigation restore or resynchronize media. Partial translations continue polling. Device support for two simultaneous Cobalt media elements must be established on the Freestyle; do not mark this feature hardware-tested from mock tests or an API download.
+The playback controller has an explicit lifetime per video. Cancellation invalidates pending responses; pause, seeking, speed changes, errors and navigation restore or resynchronize media. Partial translations continue polling. The PCM/Web Audio replacement avoids a second media element; actual mixed audio output must still be established on the Freestyle. Do not mark hardware playback tested from mock tests or a decoded signal.
 
 Checks: `node tests/test-vot.cjs`, `node tests/test-translation.cjs`, existing launcher/HTTPS checks and Python packaging tests. CI also runs translation tests with Node 12.16.3. Optional `node tests/check-yandex-network.cjs` sends a public fixture video link to the real API and checks audio delivery without printing the temporary signed URL. Build dependencies currently retain two low-severity advisories through deepmerge; the build consumes trusted repository configuration, not user-supplied configuration. Avoid forced dependency downgrades; revisit when upstream node-resolve replaces deepmerge.
 
@@ -48,3 +48,15 @@ Never commit signing certificates, device-profile XML, OAuth tokens or passwords
 ## Validation limits
 
 User-observed baseline: launch and TizenTube settings on SP-LSP3BLAXCE / Tizen 6.5 / firmware 1720.7. No measured endurance, account-login, casting, memory-pressure or multi-model certification. Branded builds are unverified until installed and checked on that projector.
+
+## PCM output (0.5.0)
+
+The projector reported AUDIO, unsupported MP3, readyState=0, networkState=3, error=4. Native MP3 playback is therefore replaced in the translation integration rather than retried. The Node service downloads the validated Yandex URL (64 MiB/45-second bound), decodes through the pinned synchronous mpg123 WASM decoder, resamples to mono 48 kHz and serves 10-second Float32 PCM chunks. Random per-video tokens and same-origin X-LSPTube requests select audio; arbitrary source URLs are not accepted.
+
+Only one translation is retained. Decoded caches hold three chunks, compressed data/decoder are released after two idle minutes, and future requests re-download/re-decode. Distant seeks outside cache scan the compressed prefix; hardware latency must be measured before replacing this with an MP3 frame index. Decode yields to Node periodically so the YouTube proxy remains responsive.
+
+Cobalt 22 supports only AudioBufferSourceNode.start(0). The frontend crops the buffer for seeks instead of using a nonzero offset, starts the next preloaded chunk on ended, and creates buffers at adjusted sample rates for playback speed. It does not assume scheduled future starts, GainNode, AudioContext.close or worker_threads. Context reuse and explicit source/timer cleanup avoid an extra video decoder. Small chunk-boundary gaps and deep-seek latency still need hardware measurement. Initial preparation has a 60-second watchdog; a confirmed stream stalled for 20 seconds is reported separately.
+
+Licensing/source: licenses/mpg123-decoder-corresponding-source.tar.gz contains the pinned decoder/common JS+C build tree, complete libmpg123 submodule source, puff, simple-yenc, source notices and relinking instructions. The generated WASM comes from the pinned npm package. Original source and Makefile are supplied for a replacement build with Emscripten 4.0.7; byte-identical rebuilding of the upstream WASM was not performed. After replacing EmscriptenWasm.js in the installed build dependency, rebuild src/vot and package normally.
+
+Validation: tests/test-pcm.cjs enforces Cobalt start(0), cropped offsets, pause, seek, speed, mute, chunk handoff, cleanup, bounded cache and token isolation. tests/check-yandex-network.cjs now verifies actual Yandex-to-PCM decoding and nonzero signal energy through Node 12.16.3. A real 8-minute seek was decoded as well; this does not prove audio output on the Freestyle.
