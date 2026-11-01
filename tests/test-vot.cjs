@@ -30,6 +30,11 @@ async function main() {
     assert.equal((await call(url + '000')).code, 400);
     const [a, b] = await Promise.all([call(url), call(url)]);
     assert.equal(a.data.status, 2); assert.equal(b.code, 200); assert.equal(calls, 1);
+    const bridge = require('../packages/launcher/service/dist/bridge.js');
+    for (const path of ['/lsptube/userscript.js', '/lsptube/icon.png']) {
+        assert(bridge.handle({url: path}, {writeHead(code) { assert.equal(code, 200); }, end(data) { assert(data.length > 100); }}));
+    }
+    assert.equal(bridge.handle({url: '/youtubei/v1/player'}, {}), false);
     console.log('VOT: session reuse, protobuf request, URL validation, input validation and request deduplication passed');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

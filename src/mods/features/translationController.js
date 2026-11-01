@@ -52,15 +52,16 @@ export function createTranslationController({ current, request, createAudio, not
             s.cancel = null;
             if (!same(s)) return;
             if (result.error) throw new Error(result.error);
-            if (result.url && s.url !== result.url) {
+            // Keep playing a partial track even if polling renews its signed URL.
+            if (result.url && (!s.audio || (s.partial && !result.partial))) {
                 if (s.audio) { s.audio.pause(); restore(s); s.audio.removeAttribute('src'); s.audio.load(); s.audio.remove(); }
-                const a = s.audio = createAudio(); s.url = result.url;
+                const a = s.audio = createAudio(); s.partial = result.partial;
                 a.onerror = () => { if (same(s) && s.audio === a) stop('Не удалось загрузить аудио перевода'); };
                 a.onended = () => { if (same(s) && s.audio === a && !s.video.ended) stop('Эта часть видео ещё не переведена. Попробуйте позже'); };
-                a.onloadedmetadata = () => { if (same(s)) sync(s); };
-                a.onwaiting = () => { if (same(s)) restore(s); };
+                a.onloadedmetadata = () => { if (same(s) && s.audio === a) sync(s); };
+                a.onwaiting = () => { if (same(s) && s.audio === a) restore(s); };
                 a.onplaying = () => {
-                    if (same(s) && s.lowered === null && !s.video.paused) {
+                    if (same(s) && s.audio === a && s.lowered === null && !s.video.paused) {
                         s.volume = s.video.volume; s.lowered = s.volume * 0.15; s.video.volume = s.lowered;
                     }
                 };
