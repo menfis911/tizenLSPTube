@@ -58,6 +58,8 @@ async function main() {
     assert.equal(video.volume, .8); assert(audio.paused);
     controller.toggle(); resolveRequest({error: 'Яндекс отклонил ролик'}); await settle();
     assert(!controller.active()); assert.equal(video.volume, .8);
+    controller.inspect();
+    assert(diagnostics.pop().details.includes('Яндекс отклонил ролик'), 'request errors must survive without an audio element');
     controller.toggle(); resolveRequest({status: 5, partial: true, url: 'https://storage.yandexcloud.net/partial?token=1'}); await settle();
     const partial = audio;
     poll(); resolveRequest({status: 5, partial: true, url: 'https://storage.yandexcloud.net/partial?token=2'}); await settle();

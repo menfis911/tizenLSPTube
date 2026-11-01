@@ -17,8 +17,18 @@ function request(path, body, headers, method = 'POST') {
             res.on('data', chunk => { size += chunk.length;
                 if (size > 1024 * 1024) finish(new Error('Слишком большой ответ Яндекса')); else chunks.push(chunk); });
             res.on('error', finish);
-            res.on('end', () => res.statusCode === 200 ? finish(null, Buffer.concat(chunks)) :
-                finish(new Error('Яндекс: HTTP ' + res.statusCode)));
+            res.on('end', () => {
+                if (res.statusCode === 200) { finish(null, Buffer.concat(chunks)); return; }
+                const stage = {
+                    '/session/create': 'создание сеанса',
+                    '/video-translation/translate': 'запрос перевода',
+                    '/video-translation/fail-audio-js': 'получение исходного аудио',
+                    '/video-translation/audio': 'подготовка аудио'
+                }[path] || 'запрос';
+                const error = new Error('Яндекс: HTTP ' + res.statusCode + ' · ' + stage);
+                error.status = res.statusCode;
+                finish(error);
+            });
         });
         req.on('error', finish);
         req.end(Buffer.from(body));

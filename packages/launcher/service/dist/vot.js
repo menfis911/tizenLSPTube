@@ -1903,15 +1903,21 @@ function createClient(request2) {
     });
     return sessionPromise;
   }
-  async function signed(path, body, method) {
+  async function signed(path, body, method, refresh = true) {
     const s = await getSession();
     const token = s.uuid + ":" + path + ":" + config_default.componentVersion;
-    return request2(path, body, {
-      ...headers,
-      "Vtrans-Signature": sign(body),
-      "Sec-Vtrans-Sk": s.secretKey,
-      "Sec-Vtrans-Token": sign(token) + ":" + token
-    }, method);
+    try {
+      return await request2(path, body, {
+        ...headers,
+        "Vtrans-Signature": sign(body),
+        "Sec-Vtrans-Sk": s.secretKey,
+        "Sec-Vtrans-Token": sign(token) + ":" + token
+      }, method);
+    } catch (error) {
+      if (error.status !== 403 || !refresh) throw error;
+      if (session === s) session = null;
+      return signed(path, body, method, false);
+    }
   }
   return async function translate(id, duration, language) {
     const url = "https://youtu.be/" + id;
@@ -1999,7 +2005,21 @@ function request(path, body, headers, method = "POST") {
         else chunks.push(chunk);
       });
       res.on("error", finish);
-      res.on("end", () => res.statusCode === 200 ? finish(null, Buffer.concat(chunks)) : finish(new Error("\u042F\u043D\u0434\u0435\u043A\u0441: HTTP " + res.statusCode)));
+      res.on("end", () => {
+        if (res.statusCode === 200) {
+          finish(null, Buffer.concat(chunks));
+          return;
+        }
+        const stage = {
+          "/session/create": "\u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0435 \u0441\u0435\u0430\u043D\u0441\u0430",
+          "/video-translation/translate": "\u0437\u0430\u043F\u0440\u043E\u0441 \u043F\u0435\u0440\u0435\u0432\u043E\u0434\u0430",
+          "/video-translation/fail-audio-js": "\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0433\u043E \u0430\u0443\u0434\u0438\u043E",
+          "/video-translation/audio": "\u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u0430\u0443\u0434\u0438\u043E"
+        }[path] || "\u0437\u0430\u043F\u0440\u043E\u0441";
+        const error = new Error("\u042F\u043D\u0434\u0435\u043A\u0441: HTTP " + res.statusCode + " \xB7 " + stage);
+        error.status = res.statusCode;
+        finish(error);
+      });
     });
     req.on("error", finish);
     req.end(Buffer.from(body));

@@ -22,11 +22,17 @@ export function createClient(request) {
         })().finally(() => { sessionPromise = null; });
         return sessionPromise;
     }
-    async function signed(path, body, method) {
+    async function signed(path, body, method, refresh = true) {
         const s = await getSession();
         const token = s.uuid + ':' + path + ':' + config.componentVersion;
-        return request(path, body, { ...headers, 'Vtrans-Signature': sign(body),
-            'Sec-Vtrans-Sk': s.secretKey, 'Sec-Vtrans-Token': sign(token) + ':' + token }, method);
+        try {
+            return await request(path, body, { ...headers, 'Vtrans-Signature': sign(body),
+                'Sec-Vtrans-Sk': s.secretKey, 'Sec-Vtrans-Token': sign(token) + ':' + token }, method);
+        } catch (error) {
+            if (error.status !== 403 || !refresh) throw error;
+            if (session === s) session = null;
+            return signed(path, body, method, false);
+        }
     }
     return async function translate(id, duration, language) {
         const url = 'https://youtu.be/' + id;

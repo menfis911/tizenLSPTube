@@ -1,5 +1,12 @@
 # Changes
 
+## 0.4.3 preview — 2026-11-01
+
+- On a signed Yandex API request rejected with HTTP 403, refresh the session and retry once. Persistent denials are still reported; no proxy, account or TLS bypass is introduced.
+- Include the failed API stage in HTTP errors, and preserve request errors and lifecycle phases in diagnostics even when no audio element exists.
+- Add regression coverage for successful session refresh, a persistent 403, transport-stage reporting, and preserved pre-playback errors.
+- The user-provided video fjeys2xEfJA returned a ready translation and downloadable audio through Node 12.16.3 on the Mac. Projector access and playback remain unverified.
+
 ## 0.4.2 preview — 2026-11-01
 
 - Make the 20-second audio startup deadline independent of video readiness and the synchronization loop.

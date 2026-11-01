@@ -2,7 +2,7 @@
 // Diagnostic build only: keep the status server alive after a startup failure.
 var http = require('http');
 var net = require('net');
-var state = {build: 'LSPTube-0.4.2', runtime: process.version, phase: 'bootstrap', errors: [], trace: []};
+var state = {build: 'LSPTube-0.4.3', runtime: process.version, phase: 'bootstrap', errors: [], trace: []};
 var started = Date.now();
 global.__ttTrace = function (message) {
     state.trace.push(Math.round((Date.now() - started) / 1000) + 's ' + String(message).slice(0, 250));
