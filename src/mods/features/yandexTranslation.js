@@ -1,5 +1,5 @@
 import { createTranslationController } from './translationController.js';
-import { showToast } from '../ui/ytUI.js';
+import { showToast, showModal, overlayPanelItemListRenderer, overlayMessageRenderer } from '../ui/ytUI.js';
 
 const translation = createTranslationController({
     current() {
@@ -25,12 +25,17 @@ const translation = createTranslationController({
         return { promise, cancel: () => xhr.abort() };
     },
     createAudio() {
-        const audio = document.createElement('video');
-        audio.setAttribute('aria-hidden', 'true'); audio.preload = 'auto';
-        audio.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
+        const audio = document.createElement('audio');
+        if (typeof audio.play !== 'function') throw new Error('Аудиоплеер не поддерживается');
+        audio.setAttribute('aria-hidden', 'true'); audio.preload = 'auto'; audio.volume = 1;
         document.body.appendChild(audio); return audio;
     },
-    notify(message) { showToast('LSPTube · Яндекс Перевод', message); }
+    diagnose(message, details) {
+        showModal({ title: message, subtitle: 'LSPTube 0.4.1 · проверка звука' },
+            overlayPanelItemListRenderer(details.split('\n').map(line => overlayMessageRenderer(line))),
+            'lsp-translation-audio-error');
+    },
+    notify(message) { showToast('LSPTube 0.4.1 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;

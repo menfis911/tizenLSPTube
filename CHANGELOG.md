@@ -1,5 +1,12 @@
 # Changes
 
+## 0.4.1 preview — 2026-11-01
+
+- Fix premature translation success: a received URL or resolved/void play() result no longer counts as playback. Confirm only after the audio clock advances in sync with video.
+- Use an audio element instead of an invisible second video element. Call play() without waiting for metadata, avoiding a preload deadlock.
+- Restore original volume on stalls; report media errors and a 20-second playback timeout in a persistent diagnostic screen.
+- Regression tests cover unloaded media, void play(), a stationary audio clock, pause/seek and late completion. Freestyle audio output still requires user verification.
+
 ## 0.4.0 preview — 2026-11-01
 
 - Preserve the working two-WGT launcher/Engine architecture; no web-player replacement.
