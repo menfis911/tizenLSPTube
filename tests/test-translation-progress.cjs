@@ -20,9 +20,11 @@ vm.runInContext(fs.readFileSync(__dirname + '/../src/mods/features/yandexTransla
 dependencies.createAudio(0); audio.listeners.loadstart();
 assert.equal(delay, 200); assert.equal(request.url, '/lsptube/pcm-status?token=fixture');
 request.status = 200; request.responseText = JSON.stringify({stage: 'Загрузка звука', percent: 63}); request.onload();
-assert(panels.pop().includes('63%')); assert(toasts.pop().includes('63%'));
+assert(panels.pop().includes('63%')); assert.equal(toasts.length, 0, 'progress must not queue native toasts');
 interval(); const pending = request; audio.listeners.loadedmetadata();
-assert(pending.aborted); assert.equal(interval, null); assert(toasts.pop().includes('100%'));
+assert(pending.aborted); assert.equal(interval, null); assert(panels.pop().includes('100%'));
+const lateReply = pending.onload; if (lateReply) lateReply();
+assert.equal(toasts.length, 0);
 assert.equal(audio.progress, 'Звук загружен: 100%');
 dependencies.progress(null); assert.equal(panels.pop(), null);
-console.log('PASS: real progress adapter polls status, displays native percentage, completes and cancels requests');
+console.log('PASS: real progress adapter polls status, updates percentage without a toast queue, completes and cancels requests');

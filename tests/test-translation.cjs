@@ -96,7 +96,10 @@ async function main() {
     video = media();
     let settings = {original: 5, voice: 75, pause: true};
     const progress = [];
-    const prepared = context.createTranslationController({current: () => ({video, id}), options: () => settings,
+    const playerVolumes = [];
+    const player = {setVolume(value) {playerVolumes.push(value); video.volume = value / 100; video.muted = false;},
+        mute() {video.muted = true;}, unMute() {video.muted = false;}};
+    const prepared = context.createTranslationController({current: () => ({video, id, player}), options: () => settings,
         progress: value => progress.push(value), notify() {},
         request: () => ({promise: new Promise(resolve => {resolveRequest = resolve;}), cancel() {}}),
         createAudio: () => {audio = media(); audio.paused = true; return audio;} });
@@ -108,9 +111,16 @@ async function main() {
     video.volume = .8; await advance(); assert(Math.abs(video.volume - .04) < 1e-8, 'reapply ducking if YouTube resets volume');
     settings = {original: 0, voice: 50, pause: true};
     await advance(); assert.equal(video.volume, 0); assert.equal(audio.volume, .5);
-    prepared.stop(); assert.equal(video.volume, .8); assert.equal(progress.pop(), null);
+    assert(video.muted, 'zero original must mute the native video, not just set volume');
+    await advance(); assert(!audio.muted, 'forced original mute must not silence translation');
+    settings.original = 5; await advance(); assert(!video.muted, 'restore original mute when selecting a nonzero level');
+    settings.original = 0; await advance(); assert(video.muted); assert.equal(playerVolumes.pop(), 0);
+    prepared.stop(); assert.equal(playerVolumes.pop(), 80); assert(!video.muted); assert.equal(video.volume, .8); assert.equal(progress.pop(), null);
     prepared.toggle(); assert(video.paused); prepared.stop(); assert(!video.paused, 'cancel resumes an automatically paused video');
     video.paused = true; prepared.toggle(); prepared.stop(); assert(video.paused, 'preserve a pre-existing user pause');
+    video = media(); video.muted = true; settings = {original: 5, voice: 100, pause: false};
+    prepared.toggle(); resolveRequest({status: 1, url: '/lsptube/pcm?token=fixture'}); await settle();
+    await advance(); prepared.stop(); assert(video.muted, 'preserve a user mute even if player volume changes unmute');
     console.log('PASS: preparation pause, resume, cancel, saved balance, zero original and volume reassertion');
     console.log('Translation: cancellation, pause, seek, rate, video change, volume restoration and live rejection passed');
     // Diagnostics must display and close without YouTube's command router or Element.remove().

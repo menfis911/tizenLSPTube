@@ -1,5 +1,12 @@
 # Changes
 
+## 0.6.3 preview — 2026-11-02
+
+- Mute the original media element explicitly for the zero-original setting while keeping translated PCM independent of that forced mute. Restore the previous mute state on pause, failure, disabling translation or returning to a nonzero level.
+- Apply/restore volume through the YouTube player API when available as well as the native video element; include requested/actual volume and mute state in diagnostics.
+- Stop enqueueing native loading toasts. Use the single updated progress panel and clear it at confirmed playback, avoiding stale percentages after the translated audio starts.
+- Add checks for forced original mute without muting translation, restoration, player volume calls, and absence of queued loading notifications. Hardware output remains to be confirmed.
+
 ## 0.6.2 preview — 2026-11-02
 
 - Keep playback translation controls together at the top: enable/disable, sound/loading settings, audio diagnostics. Add them after the other playback menu insertions so mini-player/share/screen-off cannot split the group.

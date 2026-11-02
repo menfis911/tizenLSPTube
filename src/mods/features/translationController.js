@@ -7,8 +7,22 @@ export function createTranslationController({ current, request, createAudio, not
             try { action(); } catch (_) { /* Cleanup must not hide the playback error. */ }
         }
     }
+    function setOriginalMuted(s, muted) {
+        const method = muted ? 'mute' : 'unMute';
+        if (s.player && typeof s.player[method] === 'function') {
+            try { s.player[method](); } catch (_) {}
+        }
+        s.video.muted = muted;
+    }
     function restore(s) {
-        if (s.lowered !== null && Math.abs(s.video.volume - s.lowered) < 0.001) s.video.volume = s.volume;
+        if (s.lowered !== null && Math.abs(s.video.volume - s.lowered) < 0.001) {
+            if (s.player && typeof s.player.setVolume === 'function') {
+                try { s.player.setVolume(s.volume * 100); } catch (_) {}
+            }
+            s.video.volume = s.volume;
+        }
+        if (s.forcedMuted || (s.lowered !== null && s.originalMuted)) setOriginalMuted(s, s.originalMuted);
+        s.forcedMuted = false;
         s.lowered = null;
     }
     function resume(s) {
@@ -46,6 +60,8 @@ export function createTranslationController({ current, request, createAudio, not
             'Элемент: ' + (a.tagName || 'audio'),
             'Формат: ' + mp3,
             'Загрузка: ' + (a.progress || 'нет данных'),
+            'Оригинал: задано ' + options().original + '%; volume=' + s.video.volume + '; muted=' + s.video.muted,
+            'Перевод: ' + options().voice + '%; принудительное отключение оригинала=' + !!s.forcedMuted,
             'readyState: ' + a.readyState + '; networkState: ' + a.networkState,
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
@@ -68,7 +84,7 @@ export function createTranslationController({ current, request, createAudio, not
             const v = s.video, a = s.audio;
             if (v.ended) { stop(); return; }
             if (!a) return;
-            a.muted = v.muted;
+            a.muted = s.forcedMuted ? s.originalMuted : v.muted;
             a.volume = options().voice / 100;
             a.playbackRate = v.playbackRate;
             const now = Date.now(), elapsed = Math.min(1000, now - s.lastSync);
@@ -92,9 +108,16 @@ export function createTranslationController({ current, request, createAudio, not
                     progress(null);
                     notify(s.partial ? 'Включён перевод первой части. Остальное готовится' : 'Перевод на русский включён');
                 }
-                if (s.lowered === null) s.volume = v.volume;
+                if (s.lowered === null) { s.volume = v.volume; s.originalMuted = v.muted; }
+                const muteOriginal = options().original === 0;
                 s.lowered = s.volume * options().original / 100;
+                if (s.player && typeof s.player.setVolume === 'function') {
+                    try { s.player.setVolume(s.lowered * 100); } catch (_) {}
+                }
                 v.volume = s.lowered;
+                if (muteOriginal) { s.forcedMuted = true; setOriginalMuted(s, true); }
+                else if (s.forcedMuted) { setOriginalMuted(s, s.originalMuted); s.forcedMuted = false; }
+                else if (s.originalMuted) setOriginalMuted(s, true);
             } else {
                 s.silentFor += elapsed;
                 if (a.paused || a.readyState < 3 || s.silentFor >= 1500) restore(s);
@@ -142,9 +165,8 @@ export function createTranslationController({ current, request, createAudio, not
                 a.src = result.url; a.volume = options().voice / 100; a.load();
                 s.phase = 'Запуск аудио';
                 progress('Загрузка звука…');
-                notify('Перевод готов. Загружаем звук…');
                 sync(s);
-            } else if (!s.audio) { s.phase = 'Яндекс готовит перевод'; progress('Яндекс готовит перевод…'); notify(s.preparing ? 'Яндекс готовит перевод… Ролик на паузе' : 'Яндекс готовит перевод… Можно продолжать просмотр'); }
+            } else if (!s.audio) { s.phase = 'Яндекс готовит перевод'; progress('Яндекс готовит перевод…'); }
             if (result.status !== 1) s.poll = setTimeout(() => poll(s), Math.max(5, Math.min(60, result.retryAfter || 10)) * 1000);
         } catch (error) { if (same(s)) { s.phase = 'Ошибка: ' + s.phase; stop(error.message || 'Ошибка перевода'); } }
     }
@@ -167,7 +189,7 @@ export function createTranslationController({ current, request, createAudio, not
             if (s.preparing) s.video.pause();
             progress('Запрашиваем перевод…');
             s.clock = setInterval(() => sync(s), 500);
-            notify('Запрашиваем перевод у Яндекса…'); poll(s);
+            poll(s);
         }
     };
 }
