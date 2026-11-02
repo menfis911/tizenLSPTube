@@ -82,16 +82,6 @@ export function patchResolveCommand() {
                 } else if (cmd?.openPopupAction?.uniqueId === 'playback-settings') {
                     // Patch the playback settings popup to use TizenTube speed settings
                     const items = cmd.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
-                    items.unshift(buttonItem({title: 'Яндекс Перевод · звук и загрузка'}, {icon: 'LANGUAGE'},
-                        [{customAction: {action: 'OPTIONS_SHOW', parameters: {options: translationOptions, selectedIndex: 0, menuId: 'lsptube-translation-settings', menuHeader: 'Яндекс Перевод · звук и загрузка'}}}]));
-                    items.unshift(buttonItem(
-                        { title: 'Проверка звука перевода' }, { icon: 'INFO' },
-                        [{ customAction: { action: 'LSP_TRANSLATE_STATUS' } }]
-                    ));
-                    items.unshift(buttonItem(
-                        { title: translation.active() ? 'Выключить перевод на русский' : 'Перевести на русский', subtitle: 'Яндекс · голосовой перевод' },
-                        { icon: 'LANGUAGE' }, [{ customAction: { action: 'LSP_TRANSLATE' } }]
-                    ));
                     for (const item of items) {
                         if (item?.compactLinkRenderer?.icon?.iconType === 'SLOW_MOTION_VIDEO') {
                             item.compactLinkRenderer.subtitle && (item.compactLinkRenderer.subtitle.simpleText = t('player.withTizenTube'));
@@ -162,6 +152,16 @@ export function patchResolveCommand() {
                             ])
                         );
                     }
+                    items.unshift(buttonItem(
+                        { title: 'Проверка звука перевода' }, { icon: 'INFO' },
+                        [{ customAction: { action: 'LSP_TRANSLATE_STATUS' } }]
+                    ));
+                    items.unshift(buttonItem({title: 'Яндекс Перевод · звук и загрузка'}, {icon: 'LANGUAGE'},
+                        [{customAction: {action: 'OPTIONS_SHOW', parameters: {options: translationOptions, selectedIndex: 0, menuId: 'lsptube-translation-settings', menuHeader: 'Яндекс Перевод · звук и загрузка'}}}]));
+                    items.unshift(buttonItem(
+                        { title: translation.active() ? 'Выключить перевод на русский' : 'Перевести на русский', subtitle: 'Яндекс · голосовой перевод' },
+                        { icon: 'LANGUAGE' }, [{ customAction: { action: 'LSP_TRANSLATE' } }]
+                    ));
                 } else if (cmd?.watchEndpoint?.videoId) {
                     window.isPipPlaying = false;
                     const ytlrPlayerContainer = document.querySelector('ytlr-player-container');

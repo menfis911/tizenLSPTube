@@ -1,5 +1,9 @@
 # Changes
 
+## 0.6.2 preview — 2026-11-02
+
+- Keep playback translation controls together at the top: enable/disable, sound/loading settings, audio diagnostics. Add them after the other playback menu insertions so mini-player/share/screen-off cannot split the group.
+
 ## 0.6.1 preview — 2026-11-02
 
 - Give translation settings and each volume submenu a distinct popup ID. Serialize integer radio choices as intValue, matching the native setting field.
