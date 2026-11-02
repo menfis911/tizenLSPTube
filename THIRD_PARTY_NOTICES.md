@@ -1,5 +1,10 @@
 # Third-party notices
 
+## Autonomous AAC additions in 0.8.0
+
+- libav.js 4.8.6 (runtime build 4.8.6.0.1), Yahweasel and contributors: unmodified plain WebAssembly obsolete variant. Wrapper license headers are preserved; FFmpeg 6.0.1 is LGPL 2.1-or-later. The variant also links libopus 1.4, libogg 1.3.5 and libvorbis 1.3.7 (BSD), LAME 3.100 (LGPL), and zlib 1.3 (zlib). Original notices are embedded in the shipped JavaScript and included with complete corresponding sources in [libav source archive](licenses/libav-4.8.6-corresponding-source.tar.gz).
+- Exact compiler/build configuration, original library source archives and replacement instructions are included. The module remains a separate replaceable file under service/dist/libav; no proprietary FDK encoder, platform-specific executable, SIMD or threaded runtime is distributed. New LSPTube integration is GPL-3.0-only.
+
 ## PCM audio additions in 0.5.0
 
 - mpg123-decoder 1.0.3 and @wasm-audio-decoders/common 9.0.7: Ethan Halsall, MIT; upstream commit `8f2428c1cd96b54dab74836c8471ff75fe35cbee`. Standard permission text: [MIT](licenses/wasm-audio-decoders-MIT.txt); original declarations and source are preserved in the source archive.

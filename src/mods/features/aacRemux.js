@@ -194,7 +194,9 @@ export function replaceAacFragments(input, init, preset, origin = null) {
         let timestamp = part.dts;
         for (const sample of part.samples) {
             const index = Math.round((timestamp / init.timeScale - origin) * preset.rate / 1024);
-            frames.push(preset.frames[((index % preset.frames.length) + preset.frames.length) % preset.frames.length]);
+            const frameIndex = preset.loop === false ? (index < 0 || index >= preset.frames.length ? preset.frames.length - 1 : index) :
+                ((index % preset.frames.length) + preset.frames.length) % preset.frames.length;
+            frames.push(preset.frames[frameIndex]);
             durations.push(sample.duration); timestamp += sample.duration; sampleCount++;
         }
         const run = new Uint8Array(12 + frames.length * 8), runView = new DataView(run.buffer);
@@ -207,4 +209,19 @@ export function replaceAacFragments(input, init, preset, origin = null) {
         result.push(moof, box('mdat', join(frames)));
     }
     return {bytes: sampleCount ? join(result) : data, sampleCount, firstTime};
+}
+
+export function readAacVoice(input) {
+    const data = new Uint8Array(input), view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    if (data.length < 16 || data.length > 64 * 1024 * 1024 || String.fromCharCode(...data.subarray(0, 4)) !== 'LSPA') throw new Error('Некорректный файл AAC');
+    const rate = view.getUint32(4, true), channels = view.getUint32(8, true), count = view.getUint32(12, true);
+    if (rate !== 44100 || channels !== 2 || count < 10 || count > 621000 || 16 + count * 4 > data.length) throw new Error('Некорректная конфигурация AAC');
+    const frames = []; let offset = 16 + count * 4;
+    for (let i = 0; i < count; i++) {
+        const size = view.getUint32(16 + i * 4, true);
+        if (!size || size > 8192 || offset + size > data.length) throw new Error('Неполный кадр AAC');
+        frames.push(data.subarray(offset, offset + size)); offset += size;
+    }
+    if (offset !== data.length) throw new Error('Лишние данные AAC');
+    return {rate, channels, frames, loop: false};
 }

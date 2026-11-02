@@ -32,6 +32,9 @@ class BuildTest(unittest.TestCase):
                     self.assertIn('service/dist/' + name, z.namelist())
                 for name in ['aac-test.mp4', 'aac-test-fragmented.mp4', 'aac-replace-44100-1.mp4', 'aac-replace-44100-2.mp4', 'aac-replace-48000-1.mp4', 'aac-replace-48000-2.mp4']:
                     self.assertEqual(z.read('service/dist/' + name), (builder.ROOT / 'assets/audio' / name).read_bytes())
+                for name in ['libav-4.8.6.0.1-obsolete.js', 'libav-4.8.6.0.1-obsolete.wasm.js', 'libav-4.8.6.0.1-obsolete.wasm.wasm']:
+                    self.assertEqual(z.read('service/dist/libav/' + name), (builder.ROOT / 'src/vot/libav' / name).read_bytes())
+                self.assertIn('licenses/libav-4.8.6-corresponding-source.tar.gz', z.namelist())
                 bundle = z.read('service/dist/index.js').decode()
                 self.assertIn("require('./bridge.js').handle(request, response)", bundle)
                 self.assertIn('https://www.youtube.com/lsptube/userscript.js', bundle)

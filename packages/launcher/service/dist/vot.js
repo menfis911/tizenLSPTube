@@ -31,8 +31,10 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // service.js
 var service_exports = {};
 __export(service_exports, {
+  createAacStore: () => createAacStore,
   createClient: () => createClient,
   createPcmStore: () => createPcmStore,
+  encodeVoice: () => encodeVoice,
   handle: () => handle,
   makeHandler: () => makeHandler
 });
@@ -1975,6 +1977,147 @@ function createClient(request2) {
   };
 }
 
+// aac.js
+var LIMIT = 64 * 1024 * 1024;
+var RATE = 44100;
+var yieldTask = () => new Promise((resolve) => setImmediate(resolve));
+async function encodeVoice(read, volume, progress, alive = () => true) {
+  const LibAV = require("./libav/libav-4.8.6.0.1-obsolete.js");
+  const lib = await LibAV.LibAV({ noworker: true, nothreads: true, nosimd: true });
+  let context, frame, packet;
+  try {
+    let save = function(packets) {
+      for (const value of packets) {
+        if (value.ptshi < 0 || value.pts < 0) continue;
+        const data = Buffer.from(value.data);
+        total += data.length + 4;
+        if (total > LIMIT) throw new Error("AAC-\u043F\u0435\u0440\u0435\u0432\u043E\u0434 \u043F\u0440\u0435\u0432\u044B\u0448\u0430\u0435\u0442 64 \u041C\u0438\u0411");
+        frames.push(data);
+      }
+    };
+    let frameSize;
+    [, context, frame, packet, frameSize] = await lib.ff_init_encoder("aac", { ctx: {
+      sample_rate: RATE,
+      sample_fmt: lib.AV_SAMPLE_FMT_FLTP,
+      channel_layout: 3,
+      bit_rate: 96e3
+    } });
+    if (frameSize !== 1024) throw new Error("\u041D\u0435\u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0439 \u0440\u0430\u0437\u043C\u0435\u0440 \u043A\u0430\u0434\u0440\u0430 AAC");
+    const frames = [];
+    let total = 16, pending = new Float32Array(0), timestamp = 0;
+    async function feed(data, final = false) {
+      const all = new Float32Array(pending.length + data.length);
+      all.set(pending);
+      all.set(data, pending.length);
+      let offset = 0;
+      while (offset + frameSize <= all.length) {
+        if (!alive()) throw new Error("\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 AAC \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430");
+        const batch = [];
+        for (let count = 0; count < 32 && offset + frameSize <= all.length; count++) {
+          const samples = all.slice(offset, offset + frameSize);
+          offset += frameSize;
+          batch.push({
+            data: [samples, samples],
+            format: lib.AV_SAMPLE_FMT_FLTP,
+            channel_layout: 3,
+            sample_rate: RATE,
+            pts: timestamp
+          });
+          timestamp += frameSize;
+        }
+        save(await lib.ff_encode_multi(context, frame, packet, batch, false));
+        await yieldTask();
+      }
+      pending = all.slice(offset);
+      if (final) save(await lib.ff_encode_multi(context, frame, packet, [], true));
+    }
+    for (let index = 0; index < 1440; index++) {
+      if (!alive()) throw new Error("\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 AAC \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430");
+      const part = await read(index);
+      const source = new Float32Array(part.data.buffer, part.data.byteOffset, part.frames);
+      const count = Math.ceil(part.frames * RATE / part.sampleRate), samples = new Float32Array(count);
+      for (let i = 0; i < count; i++) {
+        const pos = i * part.sampleRate / RATE, lo = Math.min(Math.floor(pos), source.length - 1), hi = Math.min(lo + 1, source.length - 1);
+        samples[i] = Math.max(-1, Math.min(1, (source[lo] + (source[hi] - source[lo]) * (pos - lo)) * volume / 100));
+      }
+      await feed(samples);
+      progress(index * 10 + part.frames / part.sampleRate);
+      if (part.ended) break;
+      if (index === 1439) throw new Error("\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u043B\u0438\u043D\u043D\u0430\u044F \u0434\u043E\u0440\u043E\u0436\u043A\u0430 AAC");
+    }
+    await feed(new Float32Array(10240 + (1024 - pending.length) % 1024), true);
+    if (frames.length < 10) throw new Error("\u041F\u0443\u0441\u0442\u0430\u044F \u0434\u043E\u0440\u043E\u0436\u043A\u0430 AAC");
+    const header = Buffer.alloc(16 + frames.length * 4);
+    header.write("LSPA");
+    header.writeUInt32LE(RATE, 4);
+    header.writeUInt32LE(2, 8);
+    header.writeUInt32LE(frames.length, 12);
+    frames.forEach((data, index) => header.writeUInt32LE(data.length, 16 + index * 4));
+    return Buffer.concat([header, ...frames]);
+  } finally {
+    if (context) await lib.ff_free_encoder(context, frame, packet);
+    lib.terminate();
+  }
+}
+function createAacStore(pcm, encode = encodeVoice) {
+  let active;
+  return {
+    prepare(token, volume, duration) {
+      if (active && active.token === token && active.volume === volume) return this.status(token);
+      const previous = active;
+      if (previous) {
+        previous.cancelled = true;
+        clearTimeout(previous.idle);
+      }
+      const entry = active = { token, volume, stage: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0437\u0432\u0443\u043A\u0430", percent: null };
+      entry.promise = Promise.resolve(previous && previous.promise).then(() => {
+        if (active !== entry || entry.cancelled) throw new Error("\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 AAC \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430");
+        return encode((index) => pcm.read(token, index), volume, (seconds) => {
+          entry.stage = "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 AAC";
+          entry.percent = Math.min(99, Math.floor(seconds * 100 / duration));
+        }, () => active === entry && !entry.cancelled);
+      }).then((data) => {
+        entry.data = data;
+        entry.stage = "AAC \u0433\u043E\u0442\u043E\u0432";
+        entry.percent = 100;
+      }, (error) => {
+        entry.error = error.message;
+      });
+      entry.idle = setTimeout(() => {
+        if (active === entry) {
+          entry.cancelled = true;
+          active = null;
+        }
+      }, 30 * 60 * 1e3);
+      if (entry.idle.unref) entry.idle.unref();
+      return this.status(token);
+    },
+    status(token) {
+      if (!active || active.token !== token) throw new Error("\u0421\u0435\u0430\u043D\u0441 AAC \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D");
+      if (active.error) throw new Error(active.error);
+      const state = active.percent === null ? pcm.status(token) : active;
+      return { ready: !!active.data, stage: state.stage, percent: active.data ? 100 : state.percent };
+    },
+    data(token) {
+      this.status(token);
+      if (!active.data) throw new Error("AAC \u0435\u0449\u0451 \u043D\u0435 \u0433\u043E\u0442\u043E\u0432");
+      clearTimeout(active.idle);
+      active.idle = setTimeout(() => {
+        if (active && active.token === token) active = null;
+      }, 12e4);
+      if (active.idle.unref) active.idle.unref();
+      return active.data;
+    },
+    cancel(token) {
+      if (active && active.token === token) {
+        active.cancelled = true;
+        clearTimeout(active.idle);
+        active = null;
+      }
+    }
+  };
+}
+
 // pcm.js
 var import_crypto2 = __toESM(require("crypto"));
 
@@ -2911,15 +3054,42 @@ function request(path, body, headers, method = "POST") {
 }
 function makeHandler(translate = createClient(request)) {
   const jobs = /* @__PURE__ */ new Map();
-  const pcm = createPcmStore();
+  const pcm = createPcmStore(), aac = createAacStore(pcm);
   return function handle2(req, res) {
-    if (!req.url.startsWith("/lsptube/vot") && !req.url.startsWith("/lsptube/pcm")) return false;
+    if (!req.url.startsWith("/lsptube/vot") && !req.url.startsWith("/lsptube/pcm") && !req.url.startsWith("/lsptube/aac")) return false;
     function send(code, data) {
       if (res.destroyed) return;
       res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
       res.end(JSON.stringify(data));
     }
     const url = new URL(req.url, "https://www.youtube.com");
+    if (["/lsptube/aac-prepare", "/lsptube/aac-data", "/lsptube/aac-cancel"].includes(url.pathname)) {
+      const token = url.searchParams.get("token") || "";
+      if (req.method !== "GET" || req.headers["x-lsptube"] !== "1" || !/^[a-f0-9]{32}$/.test(token)) {
+        send(400, { error: "\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 AAC" });
+        return true;
+      }
+      try {
+        if (url.pathname === "/lsptube/aac-cancel") {
+          aac.cancel(token);
+          send(200, { cancelled: true });
+        } else if (url.pathname === "/lsptube/aac-data") {
+          const data = aac.data(token);
+          res.writeHead(200, { "Content-Type": "application/octet-stream", "Content-Length": data.length, "Cache-Control": "no-store" });
+          res.end(data);
+        } else {
+          const volume = Number(url.searchParams.get("volume")), duration2 = Number(url.searchParams.get("duration"));
+          if (![25, 50, 75, 100].includes(volume) || !Number.isFinite(duration2) || duration2 <= 0 || duration2 > 14400) {
+            send(400, { error: "\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0435 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B AAC" });
+            return true;
+          }
+          send(200, aac.prepare(token, volume, duration2));
+        }
+      } catch (error) {
+        send(502, { error: error.message });
+      }
+      return true;
+    }
     if (url.pathname === "/lsptube/pcm-status") {
       const token = url.searchParams.get("token") || "";
       if (req.method !== "GET" || req.headers["x-lsptube"] !== "1" || !/^[a-f0-9]{32}$/.test(token)) {
@@ -2990,8 +3160,10 @@ function makeHandler(translate = createClient(request)) {
 var handle = makeHandler();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  createAacStore,
   createClient,
   createPcmStore,
+  encodeVoice,
   handle,
   makeHandler
 });

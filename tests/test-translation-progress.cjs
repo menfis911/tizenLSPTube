@@ -10,13 +10,14 @@ class XHR {
     abort() {this.aborted = true;}
 }
 const context = vm.createContext({window: {AudioContext: function() {}, addEventListener() {}},
+    createAacTranslation: () => ({stop() {}}), readAacVoice() {}, startSinglePlayerVoice() {}, stopSinglePlayerVoice() {}, singlePlayerVoiceDetails() {},
     createTranslationController(value) {dependencies = value; return {stop() {}};}, createPcmAudio: () => audio,
     configRead: key => ({translationOriginalVolume: 5, translationVoiceVolume: 100, translationPauseUntilReady: true})[key],
-    showTranslationProgress: value => panels.push(value), showToast: (title, message) => toasts.push(message),
+    showTranslationDiagnostics() {}, showTranslationProgress: value => panels.push(value), showToast: (title, message) => toasts.push(message),
     XMLHttpRequest: XHR, Number, Date, setInterval(fn, ms) {interval = fn; delay = ms; return 1;},
     clearInterval() {interval = null;}});
 vm.runInContext(fs.readFileSync(__dirname + '/../src/mods/features/yandexTranslation.js', 'utf8')
-    .replace(/^import .*;\n/gm, '').replace('export default translation;', ''), context);
+    .replace(/^import .*;\n/gm, '').replace('export default translation;', '').replace('export const aacTranslation', 'const aacTranslation'), context);
 dependencies.createAudio(0); audio.listeners.loadstart();
 assert.equal(delay, 200); assert.equal(request.url, '/lsptube/pcm-status?token=fixture');
 request.status = 200; request.responseText = JSON.stringify({stage: 'Загрузка звука', percent: 63}); request.onload();

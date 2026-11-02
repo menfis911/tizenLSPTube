@@ -7,7 +7,7 @@ import checkForUpdates from './features/updater.js';
 import { t } from 'i18next';
 import { requestNextAndNavigateChannel } from './utils/innerTubeCalls.js';
 import qrcode from 'qrcode-npm';
-import translation from './features/yandexTranslation.js';
+import translation, {aacTranslation} from './features/yandexTranslation.js';
 import startAacTest from './features/aacTest.js';
 import startSinglePlayerTest, {cancelSinglePlayerTest} from './features/singlePlayerTest.js';
 import showGuideSettings from './ui/sidebarModification.js';
@@ -161,7 +161,7 @@ export function patchResolveCommand() {
                     items.unshift(buttonItem({title: 'Яндекс Перевод · звук и загрузка'}, {icon: 'LANGUAGE'},
                         [{customAction: {action: 'OPTIONS_SHOW', parameters: {options: translationOptions, selectedIndex: 0, menuId: 'lsptube-translation-settings', menuHeader: 'Яндекс Перевод · звук и загрузка'}}}]));
                     items.unshift(buttonItem(
-                        { title: translation.active() ? 'Выключить перевод на русский' : 'Перевести на русский', subtitle: 'Яндекс · голосовой перевод' },
+                        { title: (translation.active() || aacTranslation.active()) ? 'Выключить перевод на русский' : 'Перевести на русский', subtitle: 'Яндекс · голосовой перевод' },
                         { icon: 'LANGUAGE' }, [{ customAction: { action: 'LSP_TRANSLATE' } }]
                     ));
                 } else if (cmd?.watchEndpoint?.videoId) {
@@ -208,22 +208,30 @@ export function patchResolveCommand() {
 }
 
 function customAction(action, parameters) {
+    if (action === 'LSP_AAC_TRANSLATE') {
+        resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
+        if (!aacTranslation.active()) { translation.stop(); cancelSinglePlayerTest(); }
+        aacTranslation.toggle(); return;
+    }
     if (action === 'LSP_SINGLE_PLAYER_TEST') {
+        aacTranslation.stop(false);
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
         translation.stop(); startSinglePlayerTest(); return;
     }
     if (action === 'LSP_AAC_TEST') {
+        aacTranslation.stop(false);
         cancelSinglePlayerTest();
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
         translation.stop(); startAacTest(parameters); return;
     }
     if (action === 'LSP_TRANSLATE_STATUS') {
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
-        translation.inspect(); return;
+        (aacTranslation.active() ? aacTranslation : translation).inspect(); return;
     }
     if (action === 'LSP_TRANSLATE') {
-        cancelSinglePlayerTest();
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
+        if (aacTranslation.active()) { aacTranslation.toggle(); return; }
+        cancelSinglePlayerTest();
         translation.toggle(); return;
     }
     switch (action) {

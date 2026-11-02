@@ -1,5 +1,13 @@
 # Changes
 
+## 0.8.0 native AAC preview — 2026-11-02
+
+- Freestyle user confirmed 0.7.2 single-player feasibility: moving video, steady signal, 9 replaced packets / 3870 AAC frames, 15.09 seconds observed, no media error.
+- Add opt-in «Непрерывный перевод · AAC»: download the full Yandex translation, encode to AAC-LC 44.1 kHz stereo locally in Node 12, then restart the same video at its saved position through the existing PlayerService. No Mac server, second media element, PCM scheduling or periodic drift seeks are used for this mode.
+- Retain original AAC track configuration and native decoding timestamps. Drop encoder priming, append terminal silence and never loop translated speech. Bound the voice payload to 64 MiB; expose preparation progress and cancellation with token/header validation.
+- Keep existing PCM translation and its volume balance available. AAC preview is translation-only: original mixing is not implemented; voice gain is captured at preparation. Same-video reloading and real translated playback still need device validation.
+- Preserve the separate, replaceable unmodified libav.js WASM module and complete corresponding source/license notices. Add real WASM encoder, payload-validation, service-boundary, routing and activation/cancellation tests on current Node and 12.16.3.
+
 ## 0.7.2 single-player test — 2026-11-02
 
 - Collect split MP4 boxes and moof/mdat pairs before AAC replacement. Partial calls delegate empty native appends to preserve normal update events; cancellation flushes retained original bytes on the next append. Bound retained data to 16 MiB.

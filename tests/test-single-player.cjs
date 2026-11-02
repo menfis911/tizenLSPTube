@@ -59,7 +59,7 @@ const video = {src: '', currentTime: 0, paused: false, readyState: 4, error: nul
 const player = {querySelector: () => video, getVideoData: () => ({video_id: id})};
 class MediaSource {
     constructor() {creations++;}
-    addSourceBuffer(type) {return {type, appendBuffer(data) {applied.push({buffer: this, data});}};}
+    addSourceBuffer(type) {return {type, abort() {}, appendBuffer(data) {applied.push({buffer: this, data});}};}
 }
 let urlNumber = 0;
 const window = {MediaSource, URL: {createObjectURL: () => 'blob:' + (++urlNumber)}, addEventListener() {}};
@@ -114,5 +114,31 @@ function response() {return {streamingData: {adaptiveFormats: [
     context.cancelSinglePlayerTest(); assert.equal(interval, null);
     audio.appendBuffer(media.subarray(3));
     assert.deepStrictEqual(Buffer.from(applied.pop().data), media, 'cancellation flushes retained original bytes');
+    const voiceInput = fs.readFileSync(base + 'assets/audio/aac-replace-44100-2.mp4');
+    const voiceHeaderEnd = top(voiceInput).find(value => value.type === 'moof').pos;
+    const voicePreset = api.readAacPreset(voiceInput); voicePreset.loop = false;
+    const stopped = [];
+    context.startSinglePlayerVoice(voicePreset, id, message => stopped.push(message));
+    audio.appendBuffer(media.subarray(0, 3));
+    assert.equal(applied.pop().data.length, 3, 'old SourceBuffer must pass through, including partial packets');
+    assert.equal(stopped.length, 0);
+    const replacementSource = new window.MediaSource(); video.src = window.URL.createObjectURL(replacementSource);
+    const replacementAudio = replacementSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+    replacementAudio.appendBuffer(voiceInput.subarray(0, voiceHeaderEnd)); applied.pop();
+    replacementAudio.appendBuffer(voiceInput.subarray(voiceHeaderEnd));
+    const voiceOutput = Buffer.from(applied.pop().data);
+    assert.deepStrictEqual(timeline(voiceOutput), timeline(voiceInput.subarray(voiceHeaderEnd)));
+    assert(context.singlePlayerVoiceDetails().packets > 0, 'voice activates in the same video after native source reset');
+    assert.equal(stopped.length, 0);
+    replacementAudio.appendBuffer(voiceInput.subarray(voiceHeaderEnd, voiceHeaderEnd + 3));
+    assert.equal(applied.pop().data.length, 0);
+    replacementAudio.abort();
+    replacementAudio.appendBuffer(voiceInput.subarray(voiceHeaderEnd));
+    assert(applied.pop().data.length > 0); assert.equal(stopped.length, 0, 'seek abort must discard pending split segments');
+    context.stopSinglePlayerVoice(); assert.equal(context.singlePlayerVoiceDetails(), null);
+    const shortVoice = {...voicePreset, frames: voicePreset.frames.slice(0, 40)};
+    const replaced = api.replaceAacFragments(voiceInput, api.parseAacInit(voiceInput), shortVoice, 0);
+    const decodedFrames = api.readAacPreset(replaced.bytes).frames;
+    assert(Buffer.from(decodedFrames[decodedFrames.length - 1]).equals(Buffer.from(shortVoice.frames[39])), 'finite translation must not loop back to speech');
     console.log('PASS: AAC configurations/timestamps/native init, read-only packets, single-player routing, pass-through, original events, cancellation and safe fallback');
 })().catch(error => {console.error(error);process.exitCode = 1;});

@@ -64,6 +64,10 @@ async function main() {
     assert.equal((await call('/lsptube/pcm-status?token=bad')).code, 400);
     assert.equal((await call('/lsptube/pcm-status?token=' + 'a'.repeat(32), {})).code, 400);
     assert.equal((await call('/lsptube/pcm-status?token=' + 'a'.repeat(32))).code, 410);
+    assert.equal((await call('/lsptube/aac-prepare?token=' + 'a'.repeat(32), {})).code, 400);
+    assert.equal((await call('/lsptube/aac-prepare?token=' + 'a'.repeat(32) + '&volume=999&duration=20')).code, 400);
+    assert.equal((await call('/lsptube/aac-data?token=' + 'a'.repeat(32))).code, 502);
+    assert.equal((await call('/lsptube/aac-cancel?token=' + 'a'.repeat(32))).code, 200);
     const url = '/lsptube/vot?id=UF8uR6Z6KLc&duration=900';
     assert.equal((await call(url, {})).code, 400);
     assert.equal((await call('/lsptube/vot?id=http://evil&duration=4')).code, 400);

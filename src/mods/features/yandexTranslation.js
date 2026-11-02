@@ -1,3 +1,6 @@
+import {createAacTranslation} from './aacTranslationController.js';
+import {readAacVoice} from './aacRemux.js';
+import {startSinglePlayerVoice, stopSinglePlayerVoice, singlePlayerVoiceDetails} from './singlePlayerTest.js';
 import { configRead } from '../config.js';
 import showTranslationProgress from '../ui/translationProgress.js';
 import { createTranslationController } from './translationController.js';
@@ -80,7 +83,53 @@ const translation = createTranslationController({
         } catch (_) {}
         showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.7.2 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.8.0 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;
+
+// The confirmed PCM path stays available while native AAC is calibrated on Freestyle.
+export const aacTranslation = createAacTranslation({
+    current() {
+        const player = document.querySelector('.html5-video-player');
+        const video = player && player.querySelector('video'), data = player && player.getVideoData && player.getVideoData();
+        return video && data ? {player, video, id: data.video_id, live: data.isLive || data.isLiveContent} : null;
+    },
+    options: () => ({voice: Number(configRead('translationVoiceVolume')), pause: configRead('translationPauseUntilReady')}),
+    request(path, binary) {
+        const xhr = new XMLHttpRequest();
+        const promise = new Promise((resolve, reject) => {
+            xhr.open('GET', path); xhr.setRequestHeader('X-LSPTube', '1'); xhr.timeout = binary ? 120000 : 45000;
+            if (binary) xhr.responseType = 'arraybuffer';
+            xhr.onload = () => {
+                try {
+                    if (xhr.status !== 200) {
+                        const message = binary ? 'Не удалось загрузить AAC: HTTP ' + xhr.status : (JSON.parse(xhr.responseText).error || 'Ошибка AAC');
+                        throw new Error(message);
+                    }
+                    resolve(binary ? xhr.response : JSON.parse(xhr.responseText));
+                } catch (error) { reject(error); }
+            };
+            xhr.onerror = xhr.ontimeout = () => reject(new Error('Служба AAC не ответила'));
+            xhr.onabort = () => reject(new Error('Запрос отменён')); xhr.send();
+        });
+        return {promise, cancel: () => xhr.abort()};
+    },
+    reload(id, position, paused) {
+        const mappings = Object.values(window._yttv || {}).find(value => value && value.mappings);
+        const service = mappings && mappings.get('PlayerService');
+        const player = document.querySelector('.html5-video-player');
+        if (!service || !service.loadedPlaybackConfig || !service.loadVideo || !player || typeof player.stopVideo !== 'function') {
+            throw new Error('Не найден способ перезапустить текущий ролик');
+        }
+        const config = JSON.parse(JSON.stringify(service.loadedPlaybackConfig));
+        if (!config.watchEndpoint || config.watchEndpoint.videoId !== id) throw new Error('Конфигурация текущего ролика изменилась');
+        config.watchEndpoint.startTimeSeconds = Math.floor(position);
+        player.stopVideo(); service.loadVideo(config);
+        if (paused && player.pauseVideo) player.pauseVideo();
+    },
+    readVoice: readAacVoice, startAudio: startSinglePlayerVoice, stopAudio: stopSinglePlayerVoice, audioDetails: singlePlayerVoiceDetails,
+    progress: showTranslationProgress, diagnose: showTranslationDiagnostics,
+    notify: message => showToast('LSPTube · Яндекс Перевод', message)
+});
+window.addEventListener('pagehide', () => aacTranslation.stop(false));

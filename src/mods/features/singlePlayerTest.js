@@ -15,6 +15,10 @@ function finish(message, report = true) {
     active = null; clearInterval(timer);
     for (const job of s.jobs) { try { job.abort(); } catch (_) {} }
     showTranslationProgress(null);
+    if (s.mode === 'voice') {
+        if (s.onStop) s.onStop(message);
+        return;
+    }
     if (!report) return;
     const now = current(), video = now.video;
     showTranslationDiagnostics('Проверка одного плеера', [message,
@@ -29,18 +33,19 @@ function finish(message, report = true) {
     ].join('\n'));
 }
 function transform(info, input) {
-    if (aac(info.type)) {
-        const init = parseAacInit(input);
-        if (init) info.init = init;
-    }
     const s = active, now = current();
-    if (!s || !s.ready || !now.id || now.id === s.fromId) return input;
-    if (!now.video || sources.get(now.video.currentSrc || now.video.src) !== info.source) return input;
+    const eligible = s && s.ready && now.id && now.id !== s.fromId && now.video &&
+        sources.get(now.video.currentSrc || now.video.src) === info.source && !(s.mode === 'voice' && info.source === s.blockedSource);
+    if (aac(info.type)) {
+        try { const init = parseAacInit(input); if (init) info.init = init; }
+        catch (error) { if (eligible) throw error; }
+    }
+    if (!eligible) return input;
     if (s.targetId && s.targetId !== now.id) { finish('Ролик сменился'); return input; }
     if (!aac(info.type)) { finish('Выбран не AAC-LC: ' + info.type); return input; }
     if (!info.init) return input;
     const preset = s.presets[info.init.rate + '-' + info.init.channels];
-    if (!preset) { finish('Нет тестового AAC для этой конфигурации'); return input; }
+    if (!preset) { finish(s.mode === 'voice' ? 'AAC-перевод пока поддерживает только 44,1 кГц / стерео' : 'Нет тестового AAC для этой конфигурации'); return input; }
     const result = replaceAacFragments(input, info.init, preset, s.origin);
     if (!result.sampleCount) return input;
     if (s.origin === null) s.origin = result.firstTime;
@@ -76,12 +81,19 @@ try {
             if (!recentTypes.includes(type)) { recentTypes.push(type); if (recentTypes.length > 8) recentTypes.shift(); }
             if (!/^audio\//i.test(type)) return buffer;
             const append = buffer.appendBuffer, info = {type, init: null, source: this};
+            const abort = buffer.abort;
+            if (abort) buffer.abort = function() {
+                const result = abort.apply(this, arguments);
+                info.pending = null; // A seek discards partial native segments too.
+                return result;
+            };
             const wrappedAppend = function(input) {
                 let data = input;
                 try {
                     const now = current();
                     const replacing = active && active.ready && now.id && now.id !== active.fromId &&
-                        now.video && sources.get(now.video.currentSrc || now.video.src) === info.source && aac(info.type);
+                        now.video && sources.get(now.video.currentSrc || now.video.src) === info.source && aac(info.type) &&
+                        !(active.mode === 'voice' && info.source === active.blockedSource);
                     if (replacing || info.pending) {
                         if (replacing) {
                             data = collectAacPacket(info, input);
@@ -118,7 +130,9 @@ export function preferAacForSinglePlayerTest(response) {
     const formats = response && response.streamingData && response.streamingData.adaptiveFormats;
     if (Array.isArray(formats) && formats.some(format => format && aac(format.mimeType))) {
         response.streamingData.adaptiveFormats = formats.filter(format => !format ||
-            typeof format.mimeType !== 'string' || !format.mimeType.startsWith('audio/') || aac(format.mimeType));
+            typeof format.mimeType !== 'string' || !format.mimeType.startsWith('audio/') ||
+            (aac(format.mimeType) && (active.mode !== 'voice' ||
+                ((!format.audioSampleRate || Number(format.audioSampleRate) === 44100) && (!format.audioChannels || format.audioChannels === 2)))));
     }
 }
 export default async function startSinglePlayerTest() {
@@ -166,4 +180,21 @@ export default async function startSinglePlayerTest() {
     } catch (error) { if (active === s) finish(error.message); }
 }
 export function cancelSinglePlayerTest() { finish('Проверка отменена', false); }
-window.addEventListener('pagehide', cancelSinglePlayerTest);
+window.addEventListener('pagehide', () => {
+    if (active && active.mode === 'voice') active.onStop = null;
+    cancelSinglePlayerTest();
+});
+
+
+export function startSinglePlayerVoice(preset, id, onStop) {
+    if (hookError) throw new Error(hookError);
+    if (active) finish('Проверка остановлена', false);
+    const now = current();
+    active = {mode: 'voice', ready: true, fromId: null, targetId: id,
+        blockedSource: now.video && sources.get(now.video.currentSrc || now.video.src),
+        presets: {'44100-2': preset}, origin: 0, jobs: [], packets: 0, samples: 0, onStop};
+}
+export function singlePlayerVoiceDetails() {
+    return active && active.mode === 'voice' ? {packets: active.packets, samples: active.samples, format: active.format || 'ожидание AAC'} : null;
+}
+export function stopSinglePlayerVoice() { if (active && active.mode === 'voice') finish('Перевод выключен', false); }

@@ -1,5 +1,7 @@
 import { createClient } from './client.js';
 export { createClient } from './client.js';
+import { createAacStore } from './aac.js';
+export { encodeVoice, createAacStore } from './aac.js';
 import { createPcmStore } from './pcm.js';
 export { createPcmStore } from './pcm.js';
 const https = require('./compat-https.js');
@@ -39,15 +41,35 @@ function request(path, body, headers, method = 'POST') {
 
 export function makeHandler(translate = createClient(request)) {
     const jobs = new Map();
-    const pcm = createPcmStore();
+    const pcm = createPcmStore(), aac = createAacStore(pcm);
     return function handle(req, res) {
-        if (!req.url.startsWith('/lsptube/vot') && !req.url.startsWith('/lsptube/pcm')) return false;
+        if (!req.url.startsWith('/lsptube/vot') && !req.url.startsWith('/lsptube/pcm') && !req.url.startsWith('/lsptube/aac')) return false;
         function send(code, data) {
             if (res.destroyed) return;
             res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
             res.end(JSON.stringify(data));
         }
         const url = new URL(req.url, 'https://www.youtube.com');
+        if (['/lsptube/aac-prepare', '/lsptube/aac-data', '/lsptube/aac-cancel'].includes(url.pathname)) {
+            const token = url.searchParams.get('token') || '';
+            if (req.method !== 'GET' || req.headers['x-lsptube'] !== '1' || !/^[a-f0-9]{32}$/.test(token)) {
+                send(400, {error: 'Некорректный запрос AAC'}); return true;
+            }
+            try {
+                if (url.pathname === '/lsptube/aac-cancel') { aac.cancel(token); send(200, {cancelled: true}); }
+                else if (url.pathname === '/lsptube/aac-data') {
+                    const data = aac.data(token);
+                    res.writeHead(200, {'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-store'}); res.end(data);
+                } else {
+                    const volume = Number(url.searchParams.get('volume')), duration = Number(url.searchParams.get('duration'));
+                    if (![25, 50, 75, 100].includes(volume) || !Number.isFinite(duration) || duration <= 0 || duration > 14400) {
+                        send(400, {error: 'Некорректные параметры AAC'}); return true;
+                    }
+                    send(200, aac.prepare(token, volume, duration));
+                }
+            } catch (error) { send(502, {error: error.message}); }
+            return true;
+        }
         if (url.pathname === '/lsptube/pcm-status') {
             const token = url.searchParams.get('token') || '';
             if (req.method !== 'GET' || req.headers['x-lsptube'] !== '1' || !/^[a-f0-9]{32}$/.test(token)) {

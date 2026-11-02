@@ -1,2 +1,5 @@
 # Generated JavaScript contains a binary yEnc WASM literal.
 packages/launcher/service/dist/vot.js -diff
+
+src/vot/libav/* -diff
+packages/launcher/service/dist/libav/* -diff
