@@ -8,7 +8,7 @@ export default function showTranslationDiagnostics(title, details) {
     panel.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:#182128;color:#f4f0e6;padding:5vh 6vw;font-family:sans-serif';
     const heading = document.createElement('h1');
     heading.style.cssText = 'font-size:40px;margin:0 0 20px';
-    heading.textContent = 'LSPTube 0.8.0 · ' + title;
+    heading.textContent = 'LSPTube 0.8.1 · ' + title;
     const text = document.createElement('pre');
     text.style.cssText = 'font-size:25px;line-height:1.3;white-space:pre-wrap;margin:0';
     text.textContent = details;

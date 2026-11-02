@@ -9,8 +9,8 @@ vm.runInContext(fs.readFileSync(__dirname + '/../src/mods/features/aacRemux.js',
         const samples = new Float32Array(48000 * 2);
         for (let i = 0; i < samples.length; i++) samples[i] = Math.sin(i * 2 * Math.PI * 440 / 48000) * .2;
         return {data: Buffer.from(samples.buffer), frames: samples.length, sampleRate: 48000, ended: true};
-    }, 75, seconds => { checked++; assert.equal(seconds, 2); });
-    assert.equal(read, 1); assert.equal(checked, 1);
+    }, 75, seconds => { checked++; assert(seconds > 0 && seconds <= 2); });
+    assert.equal(read, 1); assert(checked > 10);
     const voice = api.readAacVoice(binary); assert.equal(voice.loop, false);
     assert.equal(voice.rate, 44100); assert.equal(voice.channels, 2);
     assert(voice.frames.length >= 90 && voice.frames.length < 105);

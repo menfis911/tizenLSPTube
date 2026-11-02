@@ -83,7 +83,7 @@ const translation = createTranslationController({
         } catch (_) {}
         showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.8.0 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.8.1 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;
@@ -110,7 +110,9 @@ export const aacTranslation = createAacTranslation({
                     resolve(binary ? xhr.response : JSON.parse(xhr.responseText));
                 } catch (error) { reject(error); }
             };
-            xhr.onerror = xhr.ontimeout = () => reject(new Error('Служба AAC не ответила'));
+            const stage = path.split('?')[0].replace('/lsptube/', '');
+            xhr.onerror = () => { const error = new Error('Сетевая ошибка · ' + stage); error.transient = true; reject(error); };
+            xhr.ontimeout = () => { const error = new Error('Тайм-аут · ' + stage + ' · ' + Math.round(xhr.timeout / 1000) + ' с'); error.transient = true; reject(error); };
             xhr.onabort = () => reject(new Error('Запрос отменён')); xhr.send();
         });
         return {promise, cancel: () => xhr.abort()};

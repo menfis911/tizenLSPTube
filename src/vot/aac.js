@@ -1,5 +1,5 @@
 const LIMIT = 64 * 1024 * 1024, RATE = 44100;
-const yieldTask = () => new Promise(resolve => setImmediate(resolve));
+const yieldTask = () => new Promise(resolve => setTimeout(resolve, 0));
 
 // Encode on the projector, without a second playback clock or external server.
 export async function encodeVoice(read, volume, progress, alive = () => true) {
@@ -11,7 +11,7 @@ export async function encodeVoice(read, volume, progress, alive = () => true) {
         [, context, frame, packet, frameSize] = await lib.ff_init_encoder('aac', {ctx: {
             sample_rate: RATE, sample_fmt: lib.AV_SAMPLE_FMT_FLTP, channel_layout: 3, bit_rate: 96000}});
         if (frameSize !== 1024) throw new Error('Неподдерживаемый размер кадра AAC');
-        const frames = []; let total = 16, pending = new Float32Array(0), timestamp = 0;
+        const frames = []; let total = 16, pending = new Float32Array(0), timestamp = 0, decodedSeconds = 0;
         function save(packets) {
             for (const value of packets) {
                 if (value.ptshi < 0 || value.pts < 0) continue; // Discard encoder priming, retain sample zero.
@@ -28,12 +28,13 @@ export async function encodeVoice(read, volume, progress, alive = () => true) {
             while (offset + frameSize <= all.length) {
                 if (!alive()) throw new Error('Подготовка AAC отменена');
                 const batch = [];
-                for (let count = 0; count < 32 && offset + frameSize <= all.length; count++) {
+                for (let count = 0; count < 4 && offset + frameSize <= all.length; count++) {
                     const samples = all.slice(offset, offset + frameSize); offset += frameSize;
                     batch.push({data: [samples, samples], format: lib.AV_SAMPLE_FMT_FLTP,
                         channel_layout: 3, sample_rate: RATE, pts: timestamp}); timestamp += frameSize;
                 }
                 save(await lib.ff_encode_multi(context, frame, packet, batch, false));
+                progress(Math.min(timestamp / RATE, decodedSeconds));
                 await yieldTask();
             }
             pending = all.slice(offset);
@@ -43,9 +44,11 @@ export async function encodeVoice(read, volume, progress, alive = () => true) {
             if (!alive()) throw new Error('Подготовка AAC отменена');
             const part = await read(index);
             const source = new Float32Array(part.data.buffer, part.data.byteOffset, part.frames);
+            decodedSeconds += part.frames / part.sampleRate;
             const count = Math.ceil(part.frames * RATE / part.sampleRate), samples = new Float32Array(count);
             for (let i = 0; i < count; i++) {
                 const pos = i * part.sampleRate / RATE, lo = Math.min(Math.floor(pos), source.length - 1), hi = Math.min(lo + 1, source.length - 1);
+                if (i && i % 8192 === 0) await yieldTask();
                 samples[i] = Math.max(-1, Math.min(1, (source[lo] + (source[hi] - source[lo]) * (pos - lo)) * volume / 100));
             }
             await feed(samples); progress(index * 10 + part.frames / part.sampleRate);

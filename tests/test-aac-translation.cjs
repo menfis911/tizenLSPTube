@@ -4,11 +4,15 @@ const video = {currentTime: 487, duration: 900, paused: false, readyState: 4, pa
 const api = vm.createContext({Number, Date, Promise, JSON,
     setInterval(fn) {watch = fn; return 1;}, clearInterval() {watch = null;}});
 vm.runInContext(fs.readFileSync(__dirname + '/../src/mods/features/aacTranslationController.js', 'utf8').replace('export function', 'function'), api);
-let pendingRequest, cancel = 0;
+let pendingRequest, cancel = 0, prepareFailures = 1;
 const controller = api.createAacTranslation({
     current: () => ({id, video}), options: () => ({pause: true, voice: 75}),
     request(path, binary) {
         requests.push(path);
+        if (path.includes('aac-prepare') && prepareFailures-- > 0) {
+            const error = new Error('temporary status timeout'); error.transient = true;
+            return {promise: Promise.reject(error), cancel() {cancel++;}};
+        }
         let result = path.includes('/vot?') ? {url: '/lsptube/pcm?token=' + 'a'.repeat(32)} :
             path.includes('aac-prepare') ? {ready: true, stage: 'AAC готов', percent: 100} : binary ? 'voice-bytes' : {};
         return {promise: pendingRequest || Promise.resolve(result), cancel() {cancel++;}};
@@ -24,6 +28,7 @@ const tick = async () => {for (let i = 0; i < 20; i++) await Promise.resolve();}
     controller.toggle(); assert(video.paused); await tick();
     assert.equal(reloaded.length, 1); assert.deepStrictEqual(reloaded[0], [id, 487, false]);
     assert(requests.some(path => path.includes('volume=75')));
+    assert.equal(requests.filter(path => path.includes('aac-prepare')).length, 2, 'transient status failure retries without restarting the translation');
     watch(); assert(messages.some(value => value.includes('включён'))); assert(controller.active());
     video.currentTime = 503; video.paused = false; controller.stop();
     assert.deepStrictEqual(reloaded[1], [id, 503, false]); assert.equal(stopped, 1); assert.equal(watch, null);

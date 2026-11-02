@@ -1,5 +1,11 @@
 # Changes
 
+## 0.8.1 native AAC preview — 2026-11-02
+
+- Reduce AAC batches from 32 to 4 frames, yield through the timer/I/O loop between batches and during PCM resampling. Update preparation progress per batch.
+- Retry up to two transient preparation-status failures without restarting encoding; preserve immediate errors for server/codec failures. Distinguish network failures from timed-out requests and show the endpoint without token values.
+- The 0.8.0 Freestyle report timed out during AAC preparation; these changes address event-loop responsiveness, but the device cause remains unconfirmed until retested.
+
 ## 0.8.0 native AAC preview — 2026-11-02
 
 - Freestyle user confirmed 0.7.2 single-player feasibility: moving video, steady signal, 9 replaced packets / 3870 AAC frames, 15.09 seconds observed, no media error.

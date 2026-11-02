@@ -44,8 +44,15 @@ export function createAacTranslation({current, request, reload, startAudio, stop
             s.token = match[1];
             const path = '/lsptube/aac-prepare?token=' + s.token + '&volume=' + options().voice + '&duration=' + Math.ceil(s.duration);
             const encodeDeadline = Date.now() + 30 * 60 * 1000;
+            let failures = 0;
             do {
-                const status = await get(s, path);
+                let status;
+                try { status = await get(s, path); failures = 0; }
+                catch (error) {
+                    if (run !== s || !error.transient || ++failures > 2 || Date.now() > encodeDeadline) throw error;
+                    progress(s.phase + ' · повторное подключение ' + failures + '/2…');
+                    await delay(2000); continue;
+                }
                 s.phase = status.stage; progress(status.stage + (status.percent === null ? '…' : ': ' + status.percent + '%'));
                 if (status.ready) break;
                 if (Date.now() > encodeDeadline) throw new Error('Подготовка AAC заняла больше 30 минут');

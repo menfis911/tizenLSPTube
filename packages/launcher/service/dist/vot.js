@@ -1980,7 +1980,7 @@ function createClient(request2) {
 // aac.js
 var LIMIT = 64 * 1024 * 1024;
 var RATE = 44100;
-var yieldTask = () => new Promise((resolve) => setImmediate(resolve));
+var yieldTask = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function encodeVoice(read, volume, progress, alive = () => true) {
   const LibAV = require("./libav/libav-4.8.6.0.1-obsolete.js");
   const lib = await LibAV.LibAV({ noworker: true, nothreads: true, nosimd: true });
@@ -2004,7 +2004,7 @@ async function encodeVoice(read, volume, progress, alive = () => true) {
     } });
     if (frameSize !== 1024) throw new Error("\u041D\u0435\u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0439 \u0440\u0430\u0437\u043C\u0435\u0440 \u043A\u0430\u0434\u0440\u0430 AAC");
     const frames = [];
-    let total = 16, pending = new Float32Array(0), timestamp = 0;
+    let total = 16, pending = new Float32Array(0), timestamp = 0, decodedSeconds = 0;
     async function feed(data, final = false) {
       const all = new Float32Array(pending.length + data.length);
       all.set(pending);
@@ -2013,7 +2013,7 @@ async function encodeVoice(read, volume, progress, alive = () => true) {
       while (offset + frameSize <= all.length) {
         if (!alive()) throw new Error("\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 AAC \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430");
         const batch = [];
-        for (let count = 0; count < 32 && offset + frameSize <= all.length; count++) {
+        for (let count = 0; count < 4 && offset + frameSize <= all.length; count++) {
           const samples = all.slice(offset, offset + frameSize);
           offset += frameSize;
           batch.push({
@@ -2026,6 +2026,7 @@ async function encodeVoice(read, volume, progress, alive = () => true) {
           timestamp += frameSize;
         }
         save(await lib.ff_encode_multi(context, frame, packet, batch, false));
+        progress(Math.min(timestamp / RATE, decodedSeconds));
         await yieldTask();
       }
       pending = all.slice(offset);
@@ -2035,9 +2036,11 @@ async function encodeVoice(read, volume, progress, alive = () => true) {
       if (!alive()) throw new Error("\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 AAC \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430");
       const part = await read(index);
       const source = new Float32Array(part.data.buffer, part.data.byteOffset, part.frames);
+      decodedSeconds += part.frames / part.sampleRate;
       const count = Math.ceil(part.frames * RATE / part.sampleRate), samples = new Float32Array(count);
       for (let i = 0; i < count; i++) {
         const pos = i * part.sampleRate / RATE, lo = Math.min(Math.floor(pos), source.length - 1), hi = Math.min(lo + 1, source.length - 1);
+        if (i && i % 8192 === 0) await yieldTask();
         samples[i] = Math.max(-1, Math.min(1, (source[lo] + (source[hi] - source[lo]) * (pos - lo)) * volume / 100));
       }
       await feed(samples);
