@@ -83,7 +83,7 @@ export function patchResolveCommand() {
                     // Patch the playback settings popup to use TizenTube speed settings
                     const items = cmd.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
                     items.unshift(buttonItem({title: 'Яндекс Перевод · звук и загрузка'}, {icon: 'LANGUAGE'},
-                        [{customAction: {action: 'OPTIONS_SHOW', parameters: {options: translationOptions, menuHeader: 'Яндекс Перевод · звук и загрузка'}}}]));
+                        [{customAction: {action: 'OPTIONS_SHOW', parameters: {options: translationOptions, selectedIndex: 0, menuId: 'lsptube-translation-settings', menuHeader: 'Яндекс Перевод · звук и загрузка'}}}]));
                     items.unshift(buttonItem(
                         { title: 'Проверка звука перевода' }, { icon: 'INFO' },
                         [{ customAction: { action: 'LSP_TRANSLATE_STATUS' } }]

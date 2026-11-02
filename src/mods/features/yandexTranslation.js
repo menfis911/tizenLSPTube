@@ -45,6 +45,7 @@ const translation = createTranslationController({
         const audio = createPcmAudio(audioContext, position);
         audio.addEventListener('loadstart', () => {
             clearProgressRequest();
+            let lastToast = 0, lastStage = '';
             const update = () => {
                 if (progressRequest || !audio.src) return;
                 const xhr = progressRequest = new XMLHttpRequest();
@@ -54,15 +55,26 @@ const translation = createTranslationController({
                     progressRequest = null;
                     if (xhr.status !== 200) return;
                     try { const state = JSON.parse(xhr.responseText);
-                        showTranslationProgress(state.stage + (state.percent === null ? '…' : ': ' + state.percent + '%'));
+                        const message = state.stage + (state.percent === null ? '…' : ': ' + state.percent + '%');
+                        audio.progress = message;
+                        showTranslationProgress(message);
+                        if (state.stage !== lastStage || Date.now() - lastToast >= 1000) {
+                            showToast('Яндекс Перевод · загрузка', message);
+                            lastStage = state.stage; lastToast = Date.now();
+                        }
                     } catch (_) {}
                 };
                 xhr.onerror = xhr.ontimeout = () => { progressRequest = null; };
                 xhr.send();
             };
-            progressTimer = setInterval(update, 750); update();
+            progressTimer = setInterval(update, 200); update();
         });
-        audio.addEventListener('loadedmetadata', () => { clearProgressRequest(); showTranslationProgress('Запускаем звук…'); });
+        audio.addEventListener('loadedmetadata', () => {
+            clearProgressRequest();
+            audio.progress = 'Звук загружен: 100%';
+            showTranslationProgress(audio.progress);
+            showToast('Яндекс Перевод', 'Звук загружен: 100% · запускаем перевод');
+        });
         return audio;
     },
     diagnose(message, details) {
@@ -74,7 +86,7 @@ const translation = createTranslationController({
         } catch (_) {}
         showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.6.0 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.6.1 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;

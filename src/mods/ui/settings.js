@@ -6,16 +6,16 @@ import resolveCommand from '../resolveCommand.js';
 
 const qrcodes = {};
 export const translationOptions = [
-    { name: 'Громкость оригинала', value: null, options: [0, 5, 10, 15, 25, 50, 100].map(value =>
+    { name: 'Громкость оригинала', value: null, menuId: 'lsptube-original-volume', menuHeader: 'Громкость оригинала', options: [0, 5, 10, 15, 25, 50, 100].map(value =>
         ({name: value === 0 ? 'Без оригинала' : value + '%', key: 'translationOriginalVolume', value})) },
-    { name: 'Громкость перевода', value: null, options: [25, 50, 75, 100].map(value =>
+    { name: 'Громкость перевода', value: null, menuId: 'lsptube-voice-volume', menuHeader: 'Громкость перевода', options: [25, 50, 75, 100].map(value =>
         ({name: value + '%', key: 'translationVoiceVolume', value})) },
     { name: 'Пауза до готовности перевода', subtitle: 'Продолжить ролик после загрузки звука', value: 'translationPauseUntilReady' }
 ];
 
 export default function modernUI(update, parameters) {
     const settings = [
-        { name: 'Яндекс Перевод · звук и загрузка', icon: 'LANGUAGE', value: null, options: translationOptions },
+        { name: 'Яндекс Перевод · звук и загрузка', icon: 'LANGUAGE', value: null, menuId: 'lsptube-translation-settings', options: translationOptions },
         { name: 'Проверка звука перевода', icon: 'INFO', value: null, options: [], action: {customAction: {action: 'LSP_TRANSLATE_STATUS'}} },
         { name: 'Перевод на русский · вкл. / выкл.', subtitle: 'Яндекс получает ссылку на текущий ролик', icon: 'LANGUAGE', value: null, options: [], action: {customAction: {action: 'LSP_TRANSLATE'}} },
         {
@@ -981,7 +981,7 @@ export function optionShow(parameters, update) {
                                         clientSettingEnum: {
                                             item: option.key
                                         },
-                                        stringValue: option.value
+                                        ...(Number.isInteger(option.value) ? {intValue: option.value} : {stringValue: option.value})
                                     }
                                 ]
                             }

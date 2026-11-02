@@ -1,5 +1,12 @@
 # Changes
 
+## 0.6.1 preview — 2026-11-02
+
+- Give translation settings and each volume submenu a distinct popup ID. Serialize integer radio choices as intValue, matching the native setting field.
+- Poll audio download status every 200 ms and mirror progress into native YouTube notifications. Report 100% once PCM metadata arrives, including downloads that finish between polls; retain the last state in audio diagnostics.
+- Add checks against actual settings/menu rendering and the progress adapter, including selection refresh and cancellation of pending status requests.
+- User confirmed translation playback and preparation pause on 0.6.0; this update leaves those paths intact. Device confirmation of the repaired controls/progress remains pending.
+
 ## 0.6.0 preview — 2026-11-02
 
 - Freestyle playback and seeking confirmed by the user on 0.5.1.

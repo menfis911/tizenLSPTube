@@ -45,6 +45,7 @@ export function createTranslationController({ current, request, createAudio, not
         return phase + '\n' + (a ? [
             'Элемент: ' + (a.tagName || 'audio'),
             'Формат: ' + mp3,
+            'Загрузка: ' + (a.progress || 'нет данных'),
             'readyState: ' + a.readyState + '; networkState: ' + a.networkState,
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
