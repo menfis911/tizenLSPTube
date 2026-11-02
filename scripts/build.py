@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.6.4'
+VERSION = '0.6.5'
 
 def build(projector_ip, output):
     ipaddress.IPv4Address(projector_ip)

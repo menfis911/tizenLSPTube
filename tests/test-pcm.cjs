@@ -50,12 +50,13 @@ async function main() {
             rate: 48000, start: index * 10, ended: false}), cancel() {}};
     });
     audio.src = '/lsptube/pcm?token=fixture'; audio.load(); await audio.play();
+    assert.equal(audio.sourceActive, true);
     assert.equal(node.buffer.length, 408000); assert.equal(node.buffer.sampleRate, 48000);
     assert(Math.abs(node.buffer.samples[0] - .2) < 1e-7);
     assert(Math.abs(node.buffer.samples[node.buffer.length - 1] - .2) < 1e-7);
     assert.equal(audio.readyState, 4); assert.equal(fetched[0], 1);
     context.currentTime = 1; assert.equal(audio.currentTime, 12.5);
-    audio.pause(); context.currentTime = 3; assert.equal(audio.currentTime, 12.5);
+    audio.pause(); assert.equal(audio.sourceActive, false); context.currentTime = 3; assert.equal(audio.currentTime, 12.5);
     audio.currentTime = 35.25; await audio.play(); assert.equal(node.buffer.length, 228000);
     audio.playbackRate = 2; await settle(); assert.equal(node.buffer.sampleRate, 96000);
     context.currentTime += 1; assert.equal(audio.currentTime, 37.25);

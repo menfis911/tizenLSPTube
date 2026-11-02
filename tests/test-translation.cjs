@@ -121,9 +121,15 @@ async function main() {
         assert(video.muted, 'keep original muted through repeated clock alignment');
         assert.equal(video.volume, 0); assert(!audio.muted);
     }
+    audio.sourceActive = true;
+    for (let i = 0; i < 8; i++) { now += 500; video.currentTime += .5; tick(); await settle(); }
+    assert(video.muted, 'an active PCM source must keep original muted despite coarse audio clock readings');
+    assert.equal(video.volume, 0);
+    audio.sourceActive = false; audio.readyState = 2;
     for (let i = 0; i < 4; i++) { now += 500; video.currentTime += .5; tick(); await settle(); }
     assert(!video.muted, 'a genuinely stuck audio clock must still restore original sound');
     assert.equal(video.volume, .8);
+    audio.sourceActive = true; audio.readyState = 4;
     settings.original = 5; await advance(); assert(!video.muted, 'restore original mute when selecting a nonzero level');
     settings.original = 0; await advance(); assert(video.muted); assert.equal(playerVolumes.pop(), 0);
     prepared.stop(); assert.equal(playerVolumes.pop(), 80); assert(!video.muted); assert.equal(video.volume, .8); assert.equal(progress.pop(), null);

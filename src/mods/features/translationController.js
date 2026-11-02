@@ -75,6 +75,7 @@ export function createTranslationController({ current, request, createAudio, not
             'Загрузка: ' + (a.progress || 'нет данных'),
             'Оригинал: задано ' + options().original + '%; volume=' + s.video.volume + '; muted=' + s.video.muted,
             'Перевод: ' + options().voice + '%; принудительное отключение оригинала=' + !!s.forcedMuted,
+            'PCM sourceActive: ' + a.sourceActive,
             'readyState: ' + a.readyState + '; networkState: ' + a.networkState,
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
@@ -103,6 +104,7 @@ export function createTranslationController({ current, request, createAudio, not
             const now = Date.now(), elapsed = Math.min(1000, now - s.lastSync);
             s.lastSync = now;
             if (v.paused || v.seeking || v.readyState < 3) { a.pause(); restore(s); return; }
+            const sourceActive = a.sourceActive === true;
             const clockAdvanced = s.lastAudioTime !== null && a.currentTime > s.lastAudioTime + 0.01;
             let aligned = false;
             if (a.readyState >= 1 && Math.abs(a.currentTime - v.currentTime) > 0.7) {
@@ -123,7 +125,7 @@ export function createTranslationController({ current, request, createAudio, not
                     notify(s.partial ? 'Включён перевод первой части. Остальное готовится' : 'Перевод на русский включён');
                 }
             } else {
-                s.silentFor = aligned && clockAdvanced ? 0 : s.silentFor + elapsed;
+                s.silentFor = sourceActive || (aligned && clockAdvanced) ? 0 : s.silentFor + elapsed;
                 if (a.paused || a.readyState < 2 || s.silentFor >= 1500) restore(s);
                 if (s.confirmed && s.silentFor >= 20000) { fail(s, 'Аудио перевода не воспроизводится'); return; }
             }

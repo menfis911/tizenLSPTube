@@ -128,6 +128,7 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
         return starting;
     }
     Object.defineProperties(audio, {
+        sourceActive: {get: () => node !== null},
         volume: {get: () => volume, set(value) { if (!Number.isFinite(value) || value < 0 || value > 1 || value === volume) return;
             restart(); volume = value; if (wanted) start().catch(() => {}); }},
         currentTime: {get: () => position + (anchor === null ? 0 : (context.currentTime - anchor) * rate),

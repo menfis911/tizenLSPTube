@@ -1,5 +1,10 @@
 # Changes
 
+## 0.6.5 preview — 2026-11-02
+
+- Use the actual active PCM source when detecting a stalled translation, rather than treating coarse or repeatedly aligned audio-clock readings as silence. Preserve original attenuation while that source is active.
+- Expose sourceActive in diagnostics and test active-source/coarse-clock playback separately from actual buffering with no active source. Device verification remains pending.
+
 ## 0.6.4 preview — 2026-11-02
 
 - Keep original-volume attenuation active through normal PCM clock alignment after playback has been confirmed. An advancing but realigned clock is not an audio stall.
