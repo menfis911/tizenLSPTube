@@ -42,6 +42,15 @@ for (const rate of [44100, 48000]) for (const channels of [1, 2]) {
     assert.throws(() => api.parseAacInit(input.subarray(0, 7)), /MP4/);
     assert.throws(() => api.replaceAacFragments(input, {...init, rate: 123}, preset), /не совпали/);
 }
+{
+    const data = fs.readFileSync(base + 'assets/audio/aac-replace-44100-2.mp4');
+    for (const split of [1, 7, 8, 15, 100, data.length - 1]) {
+        const state = {};
+        assert.equal(api.collectAacPacket(state, data.subarray(0, split)), null);
+        assert(Buffer.from(api.collectAacPacket(state, data.subarray(split))).equals(data));
+        assert.equal(state.pending, null);
+    }
+}
 const initData = fs.readFileSync(base + 'assets/audio/aac-replace-48000-2.mp4');
 const offset = top(initData).find(box => box.type === 'moof').pos;
 const header = initData.subarray(0, offset), media = initData.subarray(offset);
@@ -61,7 +70,7 @@ class XHR {
     abort() {if (this.onabort) this.onabort();}
 }
 const context = vm.createContext({window, Uint8Array, ArrayBuffer, DataView, Number, Math, Map, Promise, XMLHttpRequest: XHR,
-    parseAacInit: api.parseAacInit, readAacPreset: api.readAacPreset, replaceAacFragments: api.replaceAacFragments,
+    collectAacPacket: api.collectAacPacket, parseAacInit: api.parseAacInit, readAacPreset: api.readAacPreset, replaceAacFragments: api.replaceAacFragments,
     Date: {now: () => now}, setInterval(fn) {interval = fn; return 1;}, clearInterval() {interval = null;},
     document: {querySelector: selector => selector === '.html5-video-player' ? player : video,
         querySelectorAll: selector => selector === 'video' ? [video] : [], createElement() {throw new Error('second player forbidden');}},
@@ -84,7 +93,10 @@ function response() {return {streamingData: {adaptiveFormats: [
     const nativeVideo = mse.addSourceBuffer('video/mp4; codecs="avc1.640028"');
     const opaqueVideo = new Uint8Array([1, 2, 3]); nativeVideo.appendBuffer(opaqueVideo);
     assert.equal(applied.pop().data, opaqueVideo, 'video bytes are never parsed or modified');
-    const calls = applied.length; audio.appendBuffer(media);
+    const split = top(media)[0].size + 10;
+    audio.appendBuffer(media.subarray(0, 3)); assert.equal(applied.pop().data.length, 0);
+    audio.appendBuffer(media.subarray(3, split)); assert.equal(applied.pop().data.length, 0);
+    const calls = applied.length; audio.appendBuffer(media.subarray(split));
     assert.equal(applied.length, calls + 1, 'one native append and its normal events per original call');
     const changed = applied.pop().data; assert.notEqual(changed, media);
     assert.deepStrictEqual(timeline(Buffer.from(changed)), timeline(media)); assert.equal(creations, 2, 'test creates no MediaSource');
@@ -94,9 +106,13 @@ function response() {return {streamingData: {adaptiveFormats: [
     audio.appendBuffer(media); assert.equal(applied.pop().data, media, 'after test packets pass through');
     const restored = response(); context.preferAacForSinglePlayerTest(restored); assert.equal(restored.streamingData.adaptiveFormats.length, 3);
     await context.startSinglePlayerTest(); id = 'dQw4w9WgXcQ';
-    const malformed = new Uint8Array([1, 2]); audio.appendBuffer(malformed);
-    assert.equal(applied.pop().data, malformed, 'failure must fall back to original native bytes');
+    const malformed = new Uint8Array([0, 0, 0, 2, 109, 100, 97, 116]); audio.appendBuffer(malformed);
+    assert.deepStrictEqual(Buffer.from(applied.pop().data), Buffer.from(malformed), 'failure must fall back to original native bytes');
     assert(reports[1].includes('Подмена не выполнена')); assert.equal(interval, null);
-    await context.startSinglePlayerTest(); context.cancelSinglePlayerTest(); assert.equal(interval, null);
+    await context.startSinglePlayerTest(); id = 'third-video';
+    audio.appendBuffer(media.subarray(0, 3)); assert.equal(applied.pop().data.length, 0);
+    context.cancelSinglePlayerTest(); assert.equal(interval, null);
+    audio.appendBuffer(media.subarray(3));
+    assert.deepStrictEqual(Buffer.from(applied.pop().data), media, 'cancellation flushes retained original bytes');
     console.log('PASS: AAC configurations/timestamps/native init, read-only packets, single-player routing, pass-through, original events, cancellation and safe fallback');
 })().catch(error => {console.error(error);process.exitCode = 1;});

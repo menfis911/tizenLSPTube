@@ -1,5 +1,10 @@
 # Changes
 
+## 0.7.2 single-player test — 2026-11-02
+
+- Collect split MP4 boxes and moof/mdat pairs before AAC replacement. Partial calls delegate empty native appends to preserve normal update events; cancellation flushes retained original bytes on the next append. Bound retained data to 16 MiB.
+- Include box type and sizes in structural errors. Add split-header/payload and native-routing regression checks. Existing PCM translation remains unchanged; simultaneous playback still requires Freestyle validation.
+
 ## 0.7.1 single-player test — 2026-11-02
 
 - Add an opt-in next-video prototype that replaces AAC sample payloads in the existing YouTube audio SourceBuffer. Create no second media element or MediaSource; leave video packets and native append/update behavior unchanged.

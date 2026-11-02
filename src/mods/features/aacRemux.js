@@ -27,6 +27,36 @@ function boxes(data, start = 0, end = data.length) {
     }
     return result;
 }
+// Keep split boxes and moof/mdat pairs together before rewriting their payloads.
+export function collectAacPacket(state, input) {
+    const incoming = bytes(input);
+    let data = incoming;
+    if (state.pending) {
+        data = new Uint8Array(state.pending.length + incoming.length);
+        data.set(state.pending); data.set(incoming, state.pending.length);
+    }
+    state.pending = data;
+    if (data.length > LIMIT) throw new Error('Сборка MP4 превышает 16 МиБ');
+    let offset = 0, awaitingData = false;
+    while (offset < data.length) {
+        if (data.length - offset < 8) return null;
+        let size = u32(data, offset), header = 8;
+        if (size === 1) {
+            if (data.length - offset < 16) return null;
+            size = u64(data, offset + 8); header = 16;
+        }
+        if (!size) size = data.length - offset;
+        const type = String.fromCharCode(...data.subarray(offset + 4, offset + 8));
+        if (size < header || size > LIMIT) throw new Error('Некорректный MP4: ' + type + ', размер ' + size + ', получено ' + (data.length - offset));
+        if (offset + size > data.length) return null;
+        if (type === 'moof') awaitingData = true;
+        if (type === 'mdat') awaitingData = false;
+        offset += size;
+    }
+    if (awaitingData) return null;
+    state.pending = null;
+    return data;
+}
 function children(data, box, skip = 0) { return boxes(data, box.payload + skip, box.end); }
 function required(list, type) {
     const box = list.find(value => value.type === type);

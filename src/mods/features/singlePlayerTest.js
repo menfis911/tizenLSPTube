@@ -1,4 +1,4 @@
-import {parseAacInit, readAacPreset, replaceAacFragments} from './aacRemux.js';
+import {collectAacPacket, parseAacInit, readAacPreset, replaceAacFragments} from './aacRemux.js';
 import showTranslationDiagnostics from '../ui/translationDiagnostics.js';
 import showTranslationProgress from '../ui/translationProgress.js';
 let active = null, hookError = '', timer;
@@ -78,8 +78,27 @@ try {
             const append = buffer.appendBuffer, info = {type, init: null, source: this};
             const wrappedAppend = function(input) {
                 let data = input;
-                try { data = transform(info, input); }
-                catch (error) { const id = current().id; if (active && active.ready && id && id !== active.fromId) finish('Подмена не выполнена: ' + error.message); }
+                try {
+                    const now = current();
+                    const replacing = active && active.ready && now.id && now.id !== active.fromId &&
+                        now.video && sources.get(now.video.currentSrc || now.video.src) === info.source && aac(info.type);
+                    if (replacing || info.pending) {
+                        if (replacing) {
+                            data = collectAacPacket(info, input);
+                            if (data === null) data = new Uint8Array(0);
+                        } else {
+                            const pending = info.pending; info.pending = null;
+                            data = new Uint8Array(pending.length + input.byteLength);
+                            data.set(pending); data.set(ArrayBuffer.isView(input) ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength) : new Uint8Array(input), pending.length);
+                        }
+                    }
+                    data = transform(info, data);
+                }
+                catch (error) {
+                    if (info.pending) { data = info.pending; info.pending = null; }
+                    const id = current().id;
+                    if (active && active.ready && id && id !== active.fromId) finish('Подмена не выполнена: ' + error.message);
+                }
                 try { return append.call(this, data); }
                 catch (error) { if (active) finish('SourceBuffer: ' + error.message); throw error; }
             };
