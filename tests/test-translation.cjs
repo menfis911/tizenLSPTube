@@ -113,6 +113,7 @@ async function main() {
     await advance(); assert.equal(video.volume, 0); assert.equal(audio.volume, .5);
     assert(video.muted, 'zero original must mute the native video, not just set volume');
     await advance(); assert(!audio.muted, 'forced original mute must not silence translation');
+    audio.sourceActive = true;
     // Frequent clock corrections are playback, not proof of an audio stall.
     for (let i = 0; i < 5; i++) {
         now += 500; video.currentTime += 1.5; audio.currentTime += .5;
@@ -138,6 +139,20 @@ async function main() {
     video = media(); video.muted = true; settings = {original: 5, voice: 100, pause: false};
     prepared.toggle(); resolveRequest({status: 1, url: '/lsptube/pcm?token=fixture'}); await settle();
     await advance(); prepared.stop(); assert(video.muted, 'preserve a user mute even if player volume changes unmute');
+    video = media(); settings = {original: 0, voice: 100, pause: false};
+    prepared.toggle(); resolveRequest({status: 1, url: '/lsptube/pcm?token=fixture'}); await settle();
+    await advance(); audio.sourceActive = true;
+    for (let i = 0; i < 4; i++) {
+        now += 500; video.currentTime += .5; audio.currentTime = video.currentTime - .9; tick(); await settle();
+        assert(Math.abs(video.currentTime - audio.currentTime - .9) < 1e-6, 'brief drift must not restart audio');
+    }
+    now += 500; video.currentTime += .5; audio.currentTime = video.currentTime - .9; tick(); await settle();
+    assert.equal(audio.currentTime, video.currentTime, 'persistent drift is corrected after two seconds');
+    now += 500; video.currentTime += .5; audio.currentTime = video.currentTime - .9; tick(); await settle();
+    assert(Math.abs(video.currentTime - audio.currentTime - .9) < 1e-6, 'corrections have a cooldown');
+    video.listeners.seeked(); await settle(); assert.equal(audio.currentTime, video.currentTime, 'user seeking stays immediate');
+    prepared.stop();
+    console.log('PASS: bounded drift correction, cooldown and immediate user seek');
     console.log('PASS: preparation pause, resume, cancel, saved balance, zero original and volume reassertion');
     console.log('Translation: cancellation, pause, seek, rate, video change, volume restoration and live rejection passed');
     // Diagnostics must display and close without YouTube's command router or Element.remove().

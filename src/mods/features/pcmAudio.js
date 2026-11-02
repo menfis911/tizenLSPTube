@@ -55,7 +55,7 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
             timer = setInterval(() => {
                 if (!wanted || muted) return;
                 const index = Math.floor(audio.currentTime / 10);
-                part(index + 1).catch(() => {});
+                part(index + 1).then(data => { if (data.frames) prepareBuffer(data, 0); }).catch(() => {});
                 if (!node) start().catch(() => {});
             }, 200);
         }
@@ -98,6 +98,14 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
         }).finally(() => { if (epoch === currentEpoch) pending.delete(index); });
         pending.set(index, {promise, cancel: job.cancel}); return promise;
     }
+    function prepareBuffer(data, offset) {
+        if (offset === 0 && data.buffer && data.bufferRate === rate && data.bufferVolume === volume) return data.buffer;
+        const buffer = context.createBuffer(1, data.frames - offset, data.rate * rate);
+        const samples = data.samples.subarray(offset);
+        buffer.copyToChannel(volume === 1 ? samples : samples.map(sample => sample * volume), 0, 0);
+        if (offset === 0) { data.buffer = buffer; data.bufferRate = rate; data.bufferVolume = volume; }
+        return buffer;
+    }
     function start() {
         if (!wanted || node) return Promise.resolve();
         if (muted) { anchor = context.currentTime; audio.readyState = 4; return Promise.resolve(); }
@@ -109,9 +117,7 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
             if (!wanted || currentGeneration !== generation) return;
             const offset = Math.max(0, Math.floor((position - data.start) * data.rate));
             if (offset >= data.frames) { audio.ended = true; wanted = false; audio.paused = true; emit('ended'); return; }
-            const buffer = context.createBuffer(1, data.frames - offset, data.rate * rate);
-            const samples = data.samples.subarray(offset);
-            buffer.copyToChannel(volume === 1 ? samples : samples.map(sample => sample * volume), 0, 0);
+            const buffer = prepareBuffer(data, offset);
             const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination);
             source.onended = () => {
                 if (node !== source || generation !== currentGeneration) return;

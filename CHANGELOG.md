@@ -1,5 +1,13 @@
 # Changes
 
+## 0.6.6 preview — 2026-11-02
+
+- Avoid restarting translated audio for brief drift: require two seconds of sustained drift and a five-second correction cooldown. Explicit user seeks and large discontinuities still align immediately.
+- Prepare the next cached PCM AudioBuffer before the current chunk ends, including volume/rate conversion, and reuse it on handoff. Keep the three-chunk cache bound and Cobalt start(0) compatibility.
+- Regression checks cover transient drift, sustained corrections, cooldown, immediate seeks and no AudioBuffer allocation during a prefetched handoff.
+- User confirmed translation, original-volume controls and progress on 0.6.5. Audible stutter improvement on the projector remains unverified.
+- Record the requested clean launch screen, automatic foreground reopening and unified-app work in docs/ROADMAP.md for a later change.
+
 ## 0.6.5 preview — 2026-11-02
 
 - Use the actual active PCM source when detecting a stalled translation, rather than treating coarse or repeatedly aligned audio-clock readings as silence. Preserve original attenuation while that source is active.

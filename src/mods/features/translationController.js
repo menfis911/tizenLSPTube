@@ -107,9 +107,16 @@ export function createTranslationController({ current, request, createAudio, not
             const sourceActive = a.sourceActive === true;
             const clockAdvanced = s.lastAudioTime !== null && a.currentTime > s.lastAudioTime + 0.01;
             let aligned = false;
-            if (a.readyState >= 1 && Math.abs(a.currentTime - v.currentTime) > 0.7) {
+            const drift = v.currentTime - a.currentTime;
+            if (Math.abs(drift) <= 0.7) s.driftSince = null;
+            else if (s.driftSince === null) s.driftSince = now;
+            const correctDrift = !s.confirmed || s.needsSeek || Math.abs(drift) > 3 ||
+                (s.driftSince !== null && now - s.driftSince >= 2000 && now - s.lastAlignment >= 5000);
+            if (a.readyState >= 1 && Math.abs(drift) > 0.7 && correctDrift) {
                 a.currentTime = v.currentTime; aligned = true; s.alignments++;
+                s.lastAlignment = now; s.driftSince = null;
             }
+            if (a.readyState >= 1) s.needsSeek = false;
             const advancing = !aligned && !a.paused && a.readyState >= 2 &&
                 s.lastAudioTime !== null && a.currentTime > s.lastAudioTime + 0.01 &&
                 a.currentTime - s.lastAudioTime < Math.max(2, Math.abs(v.playbackRate) * 1.5) &&
@@ -158,7 +165,7 @@ export function createTranslationController({ current, request, createAudio, not
                 if (s.audio) { restore(s); release(s.audio); }
                 clearTimeout(s.watchdog);
                 const a = s.audio = createAudio(s.video.currentTime); s.partial = result.partial;
-                s.mediaEvents = []; s.alignments = 0; s.lastSync = Date.now(); s.silentFor = 0; s.lastAudioTime = null; s.confirmed = false;
+                s.mediaEvents = []; s.alignments = 0; s.driftSince = null; s.lastAlignment = -Infinity; s.needsSeek = false; s.lastSync = Date.now(); s.silentFor = 0; s.lastAudioTime = null; s.confirmed = false;
                 // Independent of video readiness, play() promises and the synchronization loop.
                 s.watchdog = setTimeout(() => { if (run === s && !s.confirmed) fail(s, 'PCM-звук не запустился за 60 секунд'); }, 60000);
                 ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'error'].forEach(name => {
@@ -190,7 +197,7 @@ export function createTranslationController({ current, request, createAudio, not
             }
             const s = run = { ...now, events: [], started: Date.now(), lowered: null, volume: now.video.volume, ticks: 0, phase: 'Запуск запроса' };
             ['pause', 'play', 'seeking', 'seeked', 'ratechange', 'waiting', 'playing', 'ended'].forEach(name => {
-                const fn = () => sync(s); s.events.push([name, fn]); s.video.addEventListener(name, fn);
+                const fn = () => { if (name === 'seeking' || name === 'seeked') s.needsSeek = true; sync(s); }; s.events.push([name, fn]); s.video.addEventListener(name, fn);
             });
             s.preparing = options().pause && !s.video.paused;
             if (s.preparing) s.video.pause();

@@ -30,9 +30,9 @@ async function main() {
     const waiting = loading.read(loadingToken, 0); await settle();
     assert.equal(loading.status(loadingToken).percent, 63);
     finishDownload(Buffer.alloc(4096)); await waiting; assert.equal(loading.status(loadingToken).percent, 100);
-    let interval, node, nodeCount = 0;
+    let interval, node, nodeCount = 0, bufferCount = 0;
     const context = {currentTime: 0, destination: {},
-        createBuffer(channels, length, rate) { assert.equal(channels, 1); const data = new Float32Array(length);
+        createBuffer(channels, length, rate) { bufferCount++; assert.equal(channels, 1); const data = new Float32Array(length);
             return {length, sampleRate: rate, samples: data,
                 copyToChannel(samples, channel, start) { assert.equal(channel, 0); assert.equal(start, 0); data.set(samples, start); }}; },
         createBufferSource() { nodeCount++; return {
@@ -60,7 +60,10 @@ async function main() {
     audio.currentTime = 35.25; await audio.play(); assert.equal(node.buffer.length, 228000);
     audio.playbackRate = 2; await settle(); assert.equal(node.buffer.sampleRate, 96000);
     context.currentTime += 1; assert.equal(audio.currentTime, 37.25);
-    node.onended(); await settle(); assert.equal(audio.currentTime, 40); assert.equal(node.buffer.length, 480000);
+    interval(); await settle();
+    const preparedCount = bufferCount;
+    node.onended(); await settle();
+    assert.equal(bufferCount, preparedCount, 'chunk handoff reuses the buffer prepared before the previous chunk ends'); assert.equal(audio.currentTime, 40); assert.equal(node.buffer.length, 480000);
     audio.volume = .5; await settle();
     assert(Math.abs(node.buffer.samples[0] - .1) < 1e-7, 'translation volume scales PCM without GainNode');
     audio.muted = true; const before = nodeCount; context.currentTime += 1;
