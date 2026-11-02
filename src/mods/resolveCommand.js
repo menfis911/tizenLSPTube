@@ -1,6 +1,6 @@
 import { configWrite, configRead } from './config.js';
 import { enablePip } from './features/pictureInPicture.js';
-import modernUI, { optionShow } from './ui/settings.js';
+import modernUI, { optionShow, translationOptions } from './ui/settings.js';
 import { speedSettings } from './ui/speedUI.js';
 import { showToast, buttonItem, showModal, QrCodeRenderer, overlayPanelItemListRenderer, overlayMessageRenderer } from './ui/ytUI.js';
 import checkForUpdates from './features/updater.js';
@@ -82,6 +82,8 @@ export function patchResolveCommand() {
                 } else if (cmd?.openPopupAction?.uniqueId === 'playback-settings') {
                     // Patch the playback settings popup to use TizenTube speed settings
                     const items = cmd.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
+                    items.unshift(buttonItem({title: 'Яндекс Перевод · звук и загрузка'}, {icon: 'LANGUAGE'},
+                        [{customAction: {action: 'OPTIONS_SHOW', parameters: {options: translationOptions, menuHeader: 'Яндекс Перевод · звук и загрузка'}}}]));
                     items.unshift(buttonItem(
                         { title: 'Проверка звука перевода' }, { icon: 'INFO' },
                         [{ customAction: { action: 'LSP_TRANSLATE_STATUS' } }]

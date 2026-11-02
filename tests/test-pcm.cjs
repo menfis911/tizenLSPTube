@@ -15,12 +15,21 @@ async function main() {
     assert.equal(first.frames, 480000); assert.equal(first.data.readFloatLE(0), .25);
     for (const index of [1, 2, 3]) assert.equal((await store.read(token, index)).frames, 480000);
     assert.equal(loads, 1);
+    assert.equal(store.status(token).percent, 100);
     assert.equal((await store.read(token, 0)).data.readFloatLE(479999 * 4), .25);
+    assert.throws(() => store.status('invalid'), /Сеанс/);
     assert.equal(resets, 1, 'backward seeking outside the three-chunk cache resets the decoder');
     assert.equal(store.register('https://storage.yandexcloud.net/renewed', 'video-1', false), token);
     store.register('https://storage.yandexcloud.net/fixture', 'video-2', false);
     await assert.rejects(store.read(token, 0), /Сеанс аудио завершён/);
 
+    let finishDownload;
+    const loading = createPcmStore((url, progress) => { progress({stage: 'Загрузка звука', percent: 63});
+        return new Promise(resolve => {finishDownload = resolve;}); }, Decoder);
+    const loadingToken = loading.register('https://storage.yandexcloud.net/fixture', 'loading', false);
+    const waiting = loading.read(loadingToken, 0); await settle();
+    assert.equal(loading.status(loadingToken).percent, 63);
+    finishDownload(Buffer.alloc(4096)); await waiting; assert.equal(loading.status(loadingToken).percent, 100);
     let interval, node, nodeCount = 0;
     const context = {currentTime: 0, destination: {},
         createBuffer(channels, length, rate) { assert.equal(channels, 1); const data = new Float32Array(length);
@@ -51,6 +60,8 @@ async function main() {
     audio.playbackRate = 2; await settle(); assert.equal(node.buffer.sampleRate, 96000);
     context.currentTime += 1; assert.equal(audio.currentTime, 37.25);
     node.onended(); await settle(); assert.equal(audio.currentTime, 40); assert.equal(node.buffer.length, 480000);
+    audio.volume = .5; await settle();
+    assert(Math.abs(node.buffer.samples[0] - .1) < 1e-7, 'translation volume scales PCM without GainNode');
     audio.muted = true; const before = nodeCount; context.currentTime += 1;
     assert.equal(audio.currentTime, 42); assert.equal(nodeCount, before);
     audio.muted = false; await settle(); assert(nodeCount > before);

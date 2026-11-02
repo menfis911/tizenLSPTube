@@ -93,6 +93,25 @@ async function main() {
     assert(diagnostics[diagnostics.length - 1].details.includes('readyState: 2'));
     video = media(); video.duration = Infinity; controller.toggle(); assert(!controller.active());
     assert(messages.some(message => message.includes('4 часов')));
+    video = media();
+    let settings = {original: 5, voice: 75, pause: true};
+    const progress = [];
+    const prepared = context.createTranslationController({current: () => ({video, id}), options: () => settings,
+        progress: value => progress.push(value), notify() {},
+        request: () => ({promise: new Promise(resolve => {resolveRequest = resolve;}), cancel() {}}),
+        createAudio: () => {audio = media(); audio.paused = true; return audio;} });
+    prepared.toggle(); assert(video.paused, 'pause immediately while Yandex prepares translation');
+    resolveRequest({status: 1, url: '/lsptube/pcm?token=fixture'}); await settle();
+    assert(video.paused); assert.equal(audio.volume, .75);
+    audio.onloadedmetadata(); await settle(); assert(!video.paused, 'resume only after PCM metadata arrives');
+    await advance(); assert(Math.abs(video.volume - .04) < 1e-8);
+    video.volume = .8; await advance(); assert(Math.abs(video.volume - .04) < 1e-8, 'reapply ducking if YouTube resets volume');
+    settings = {original: 0, voice: 50, pause: true};
+    await advance(); assert.equal(video.volume, 0); assert.equal(audio.volume, .5);
+    prepared.stop(); assert.equal(video.volume, .8); assert.equal(progress.pop(), null);
+    prepared.toggle(); assert(video.paused); prepared.stop(); assert(!video.paused, 'cancel resumes an automatically paused video');
+    video.paused = true; prepared.toggle(); prepared.stop(); assert(video.paused, 'preserve a pre-existing user pause');
+    console.log('PASS: preparation pause, resume, cancel, saved balance, zero original and volume reassertion');
     console.log('Translation: cancellation, pause, seek, rate, video change, volume restoration and live rejection passed');
     // Diagnostics must display and close without YouTube's command router or Element.remove().
     function element(tagName) {
@@ -111,6 +130,11 @@ async function main() {
     ui.showTranslationDiagnostics('Повтор', 'readyState: 2'); assert.equal(document.body.children.length, 1);
     listeners.keydown({keyCode: 10009, preventDefault() {}, stopImmediatePropagation() {}});
     assert.equal(document.body.children.length, 0); assert(!listeners.keydown);
+    vm.runInContext(fs.readFileSync(__dirname + '/../src/mods/ui/translationProgress.js', 'utf8').replace('export default function', 'function'), ui);
+    ui.showTranslationProgress('Загрузка звука: 63%'); assert.equal(document.body.children.length, 1);
+    assert(document.body.children[0].textContent.includes('63%'));
+    ui.showTranslationProgress('Подготовка звука…'); assert.equal(document.body.children.length, 1);
+    ui.showTranslationProgress(null); assert.equal(document.body.children.length, 0);
     console.log('PASS: independent startup watchdog, cleanup failure, manual inspection and standalone diagnostic screen');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

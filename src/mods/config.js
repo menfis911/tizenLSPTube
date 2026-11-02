@@ -1,5 +1,8 @@
 const CONFIG_KEY = 'ytaf-configuration';
 const defaultConfig = {
+  translationOriginalVolume: 5,
+  translationVoiceVolume: 100,
+  translationPauseUntilReady: true,
   enableAdBlock: true,
   enableSponsorBlock: true,
   enableSponsorBlockToasts: true,

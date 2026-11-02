@@ -48,6 +48,14 @@ export function makeHandler(translate = createClient(request)) {
             res.end(JSON.stringify(data));
         }
         const url = new URL(req.url, 'https://www.youtube.com');
+        if (url.pathname === '/lsptube/pcm-status') {
+            const token = url.searchParams.get('token') || '';
+            if (req.method !== 'GET' || req.headers['x-lsptube'] !== '1' || !/^[a-f0-9]{32}$/.test(token)) {
+                send(400, {error: 'Некорректный запрос состояния'}); return true;
+            }
+            try { send(200, pcm.status(token)); } catch (error) { send(410, {error: error.message}); }
+            return true;
+        }
         if (url.pathname === '/lsptube/pcm') {
             const token = url.searchParams.get('token') || '', index = Number(url.searchParams.get('chunk'));
             if (req.method !== 'GET' || req.headers['x-lsptube'] !== '1' || !/^[a-f0-9]{32}$/.test(token) ||

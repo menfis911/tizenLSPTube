@@ -61,6 +61,9 @@ async function main() {
             writeHead(code) { this.code = code; }, end(data) { resolve({code: this.code, data: JSON.parse(data)}); }
         }));
     }
+    assert.equal((await call('/lsptube/pcm-status?token=bad')).code, 400);
+    assert.equal((await call('/lsptube/pcm-status?token=' + 'a'.repeat(32), {})).code, 400);
+    assert.equal((await call('/lsptube/pcm-status?token=' + 'a'.repeat(32))).code, 410);
     const url = '/lsptube/vot?id=UF8uR6Z6KLc&duration=900';
     assert.equal((await call(url, {})).code, 400);
     assert.equal((await call('/lsptube/vot?id=http://evil&duration=4')).code, 400);

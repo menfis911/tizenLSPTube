@@ -2699,7 +2699,7 @@ function MPEGDecoder(options = {}) {
 var https = require("./compat-https.js");
 var PCM_RATE = 48e3;
 var PCM_SECONDS = 10;
-function download(url) {
+function download(url, progress) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     let size = 0, done = false;
@@ -2725,8 +2725,10 @@ function download(url) {
         finish(new Error("\u0410\u0443\u0434\u0438\u043E \u042F\u043D\u0434\u0435\u043A\u0441\u0430: HTTP " + res.statusCode));
         return;
       }
+      const total = Number(res.headers["content-length"]);
       res.on("data", (chunk) => {
         size += chunk.length;
+        progress({ stage: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0437\u0432\u0443\u043A\u0430", percent: total > 0 ? Math.min(100, Math.floor(size * 100 / total)) : null });
         if (size > 64 * 1024 * 1024) finish(new Error("\u0410\u0443\u0434\u0438\u043E \u043F\u0435\u0440\u0435\u0432\u043E\u0434\u0430 \u043F\u0440\u0435\u0432\u044B\u0448\u0430\u0435\u0442 \u043B\u0438\u043C\u0438\u0442 64 \u041C\u0438\u0411"));
         else chunks.push(chunk);
       });
@@ -2758,7 +2760,10 @@ function createPcmStore(load = download, Decoder = MPEGDecoder) {
     clearTimeout(entry.idle);
     if (entry.cache.has(index)) return entry.cache.get(index);
     if (!entry.prepared) entry.prepared = (async () => {
-      const data = await load(entry.url);
+      entry.progress = { stage: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0437\u0432\u0443\u043A\u0430", percent: null };
+      const data = await load(entry.url, (value) => {
+        entry.progress = value;
+      });
       if (entry !== active) throw new Error("\u0420\u043E\u043B\u0438\u043A \u0438\u0437\u043C\u0435\u043D\u0438\u043B\u0441\u044F");
       entry.data = data;
       entry.offset = 0;
@@ -2768,6 +2773,7 @@ function createPcmStore(load = download, Decoder = MPEGDecoder) {
       await entry.decoder.ready;
     })();
     await entry.prepared;
+    entry.progress = { stage: "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u0437\u0432\u0443\u043A\u0430", percent: null };
     if (index < entry.next) {
       await entry.decoder.reset();
       entry.offset = 0;
@@ -2810,6 +2816,7 @@ function createPcmStore(load = download, Decoder = MPEGDecoder) {
       data: Buffer.from(output.buffer, 0, written * 4),
       ended: written < output.length
     };
+    entry.progress = { stage: "\u0417\u0432\u0443\u043A \u0433\u043E\u0442\u043E\u0432", percent: 100 };
     entry.next = index + 1;
     entry.cache.set(index, result);
     while (entry.cache.size > 3) entry.cache.delete(entry.cache.keys().next().value);
@@ -2828,6 +2835,10 @@ function createPcmStore(load = download, Decoder = MPEGDecoder) {
       }
       active = { url, id, partial, token: import_crypto2.default.randomBytes(16).toString("hex"), cache: /* @__PURE__ */ new Map(), queue: Promise.resolve() };
       return active.token;
+    },
+    status(token) {
+      if (!active || active.token !== token) throw new Error("\u0421\u0435\u0430\u043D\u0441 \u0430\u0443\u0434\u0438\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D");
+      return active.progress || { stage: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0437\u0432\u0443\u043A\u0430", percent: null };
     },
     read(token, index) {
       const entry = active;
@@ -2909,6 +2920,19 @@ function makeHandler(translate = createClient(request)) {
       res.end(JSON.stringify(data));
     }
     const url = new URL(req.url, "https://www.youtube.com");
+    if (url.pathname === "/lsptube/pcm-status") {
+      const token = url.searchParams.get("token") || "";
+      if (req.method !== "GET" || req.headers["x-lsptube"] !== "1" || !/^[a-f0-9]{32}$/.test(token)) {
+        send(400, { error: "\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F" });
+        return true;
+      }
+      try {
+        send(200, pcm.status(token));
+      } catch (error) {
+        send(410, { error: error.message });
+      }
+      return true;
+    }
     if (url.pathname === "/lsptube/pcm") {
       const token = url.searchParams.get("token") || "", index = Number(url.searchParams.get("chunk"));
       if (req.method !== "GET" || req.headers["x-lsptube"] !== "1" || !/^[a-f0-9]{32}$/.test(token) || !Number.isInteger(index) || index < 0 || index >= 1440) {

@@ -1,5 +1,13 @@
 # Changes
 
+## 0.6.0 preview — 2026-11-02
+
+- Freestyle playback and seeking confirmed by the user on 0.5.1.
+- Show persistent preparation stages and actual audio download percentage when Content-Length is available; do not invent a translation-generation percentage.
+- Add saved original/translation volume choices in playback and LSPTube settings; default to 5% original and 100% translation. Reapply original attenuation while translated audio advances, and scale PCM samples for Cobalt-compatible voice volume.
+- Optional preparation pause (on by default) resumes after PCM metadata arrives; preserve an existing user pause and restore playback on cancellation/failure.
+- Token-validated status endpoint reports no signed audio URLs. Automated checks cover progress, volume scaling, original mute, pause/resume and cancellation; projector verification remains pending.
+
 ## 0.5.1 preview — 2026-11-02
 
 - Fill PCM buffers using Cobalt AudioBuffer.copyToChannel; getChannelData is unavailable on the projector.

@@ -4,7 +4,7 @@ const https = require('./compat-https.js');
 export const PCM_RATE = 48000;
 export const PCM_SECONDS = 10;
 
-function download(url) {
+function download(url, progress) {
     return new Promise((resolve, reject) => {
         const parsed = new URL(url);
         let size = 0, done = false; const chunks = [];
@@ -16,8 +16,10 @@ function download(url) {
         const req = https.request({hostname: parsed.hostname, port: 443, path: parsed.pathname + parsed.search,
             method: 'GET', rejectUnauthorized: true}, res => {
             if (res.statusCode !== 200) { finish(new Error('Аудио Яндекса: HTTP ' + res.statusCode)); return; }
+            const total = Number(res.headers['content-length']);
             res.on('data', chunk => {
                 size += chunk.length;
+                progress({stage: 'Загрузка звука', percent: total > 0 ? Math.min(100, Math.floor(size * 100 / total)) : null});
                 if (size > 64 * 1024 * 1024) finish(new Error('Аудио перевода превышает лимит 64 МиБ'));
                 else chunks.push(chunk);
             });
@@ -40,12 +42,14 @@ export function createPcmStore(load = download, Decoder = MPEGDecoder) {
         clearTimeout(entry.idle);
         if (entry.cache.has(index)) return entry.cache.get(index);
         if (!entry.prepared) entry.prepared = (async () => {
-            const data = await load(entry.url);
+            entry.progress = {stage: 'Загрузка звука', percent: null};
+            const data = await load(entry.url, value => { entry.progress = value; });
             if (entry !== active) throw new Error('Ролик изменился');
             entry.data = data; entry.offset = 0; entry.samples = 0; entry.next = 0;
             entry.decoder = new Decoder(); await entry.decoder.ready;
         })();
         await entry.prepared;
+        entry.progress = {stage: 'Подготовка звука', percent: null};
         if (index < entry.next) {
             // shortcut: distant backward seeks re-decode the prefix; add a frame index if hardware seeks are too slow.
             await entry.decoder.reset(); entry.offset = 0; entry.samples = 0; entry.block = null;
@@ -80,6 +84,7 @@ export function createPcmStore(load = download, Decoder = MPEGDecoder) {
         if (!written && index === 0) throw new Error('Не удалось декодировать MP3 перевода');
         const result = {start: index * PCM_SECONDS, frames: written, sampleRate: PCM_RATE,
             data: Buffer.from(output.buffer, 0, written * 4), ended: written < output.length};
+        entry.progress = {stage: 'Звук готов', percent: 100};
         entry.next = index + 1; entry.cache.set(index, result);
         while (entry.cache.size > 3) entry.cache.delete(entry.cache.keys().next().value);
         return result;
@@ -94,6 +99,10 @@ export function createPcmStore(load = download, Decoder = MPEGDecoder) {
             }
             active = {url, id, partial, token: crypto.randomBytes(16).toString('hex'), cache: new Map(), queue: Promise.resolve()};
             return active.token;
+        },
+        status(token) {
+            if (!active || active.token !== token) throw new Error('Сеанс аудио завершён');
+            return active.progress || {stage: 'Загрузка звука', percent: null};
         },
         read(token, index) {
             const entry = active;

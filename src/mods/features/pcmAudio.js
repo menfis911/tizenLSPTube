@@ -31,8 +31,9 @@ function requestPart(url, index) {
 export function createPcmAudio(context, initialPosition = 0, fetchPart = requestPart) {
     const listeners = {}, cache = new Map(), pending = new Map();
     let position = initialPosition, anchor = null, rate = 1, muted = false, wanted = false;
+    let volume = 1;
     let node = null, generation = 0, epoch = 0, timer, starting;
-    const audio = {tagName: 'PCM/WebAudio', src: '', volume: 1, paused: true, ended: false, readyState: 0, networkState: 0,
+    const audio = {tagName: 'PCM/WebAudio', src: '', paused: true, ended: false, readyState: 0, networkState: 0,
         canPlayType: () => 'PCM через Web Audio', error: null,
         addEventListener(name, fn) { (listeners[name] || (listeners[name] = [])).push(fn); },
         removeEventListener(name, fn) { listeners[name] = (listeners[name] || []).filter(value => value !== fn); },
@@ -109,7 +110,8 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
             const offset = Math.max(0, Math.floor((position - data.start) * data.rate));
             if (offset >= data.frames) { audio.ended = true; wanted = false; audio.paused = true; emit('ended'); return; }
             const buffer = context.createBuffer(1, data.frames - offset, data.rate * rate);
-            buffer.copyToChannel(data.samples.subarray(offset), 0, 0);
+            const samples = data.samples.subarray(offset);
+            buffer.copyToChannel(volume === 1 ? samples : samples.map(sample => sample * volume), 0, 0);
             const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination);
             source.onended = () => {
                 if (node !== source || generation !== currentGeneration) return;
@@ -126,6 +128,8 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
         return starting;
     }
     Object.defineProperties(audio, {
+        volume: {get: () => volume, set(value) { if (!Number.isFinite(value) || value < 0 || value > 1 || value === volume) return;
+            restart(); volume = value; if (wanted) start().catch(() => {}); }},
         currentTime: {get: () => position + (anchor === null ? 0 : (context.currentTime - anchor) * rate),
             set(value) { if (!Number.isFinite(value) || value < 0) return; restart(); position = value; audio.ended = false;
                 if (wanted) start().catch(() => {}); }},

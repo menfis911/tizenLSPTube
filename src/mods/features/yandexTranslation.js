@@ -1,10 +1,19 @@
+import { configRead } from '../config.js';
+import showTranslationProgress from '../ui/translationProgress.js';
 import { createTranslationController } from './translationController.js';
 import { showToast } from '../ui/ytUI.js';
 import showTranslationDiagnostics from '../ui/translationDiagnostics.js';
 import { createPcmAudio } from './pcmAudio.js';
-let audioContext;
+let audioContext, progressTimer, progressRequest;
+function clearProgressRequest() {
+    clearInterval(progressTimer);
+    if (progressRequest) { progressRequest.onload = null; progressRequest.abort(); progressRequest = null; }
+}
 
 const translation = createTranslationController({
+    options() { return {original: Number(configRead('translationOriginalVolume')), voice: Number(configRead('translationVoiceVolume')),
+        pause: configRead('translationPauseUntilReady')}; },
+    progress(message) { if (!message) clearProgressRequest(); showTranslationProgress(message); },
     current() {
         const player = document.querySelector('.html5-video-player');
         const video = (player && player.querySelector('video')) || document.querySelector('video');
@@ -33,7 +42,28 @@ const translation = createTranslationController({
             if (!Context) throw new Error('Web Audio не поддерживается');
             audioContext = new Context();
         }
-        return createPcmAudio(audioContext, position);
+        const audio = createPcmAudio(audioContext, position);
+        audio.addEventListener('loadstart', () => {
+            clearProgressRequest();
+            const update = () => {
+                if (progressRequest || !audio.src) return;
+                const xhr = progressRequest = new XMLHttpRequest();
+                xhr.open('GET', audio.src.replace('/lsptube/pcm?', '/lsptube/pcm-status?'));
+                xhr.setRequestHeader('X-LSPTube', '1'); xhr.timeout = 3000;
+                xhr.onload = () => {
+                    progressRequest = null;
+                    if (xhr.status !== 200) return;
+                    try { const state = JSON.parse(xhr.responseText);
+                        showTranslationProgress(state.stage + (state.percent === null ? '…' : ': ' + state.percent + '%'));
+                    } catch (_) {}
+                };
+                xhr.onerror = xhr.ontimeout = () => { progressRequest = null; };
+                xhr.send();
+            };
+            progressTimer = setInterval(update, 750); update();
+        });
+        audio.addEventListener('loadedmetadata', () => { clearProgressRequest(); showTranslationProgress('Запускаем звук…'); });
+        return audio;
     },
     diagnose(message, details) {
         try {
@@ -44,7 +74,7 @@ const translation = createTranslationController({
         } catch (_) {}
         showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.5.1 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.6.0 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;
