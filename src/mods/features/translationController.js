@@ -25,6 +25,19 @@ export function createTranslationController({ current, request, createAudio, not
         s.forcedMuted = false;
         s.lowered = null;
     }
+    function duck(s) {
+        const v = s.video;
+        if (s.lowered === null) { s.volume = v.volume; s.originalMuted = v.muted; }
+        const muteOriginal = options().original === 0;
+        s.lowered = s.volume * options().original / 100;
+        if (s.player && typeof s.player.setVolume === 'function') {
+            try { s.player.setVolume(s.lowered * 100); } catch (_) {}
+        }
+        v.volume = s.lowered;
+        if (muteOriginal) { s.forcedMuted = true; setOriginalMuted(s, true); }
+        else if (s.forcedMuted) { setOriginalMuted(s, s.originalMuted); s.forcedMuted = false; }
+        else if (s.originalMuted) setOriginalMuted(s, true);
+    }
     function resume(s) {
         if (!s.preparing) return;
         s.preparing = false;
@@ -66,7 +79,7 @@ export function createTranslationController({ current, request, createAudio, not
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
             'Видео paused: ' + s.video.paused + '; seeking: ' + s.video.seeking + '; readyState: ' + s.video.readyState,
-            'Вызовов синхронизации: ' + s.ticks,
+            'Вызовов синхронизации: ' + s.ticks + '; выравниваний: ' + s.alignments + '; без движения: ' + s.silentFor + ' мс',
             'События: ' + s.mediaEvents.join(' → ')
         ].join('\n') : 'Аудиоплеер не создан');
     }
@@ -90,9 +103,10 @@ export function createTranslationController({ current, request, createAudio, not
             const now = Date.now(), elapsed = Math.min(1000, now - s.lastSync);
             s.lastSync = now;
             if (v.paused || v.seeking || v.readyState < 3) { a.pause(); restore(s); return; }
+            const clockAdvanced = s.lastAudioTime !== null && a.currentTime > s.lastAudioTime + 0.01;
             let aligned = false;
             if (a.readyState >= 1 && Math.abs(a.currentTime - v.currentTime) > 0.7) {
-                a.currentTime = v.currentTime; aligned = true;
+                a.currentTime = v.currentTime; aligned = true; s.alignments++;
             }
             const advancing = !aligned && !a.paused && a.readyState >= 2 &&
                 s.lastAudioTime !== null && a.currentTime > s.lastAudioTime + 0.01 &&
@@ -108,21 +122,12 @@ export function createTranslationController({ current, request, createAudio, not
                     progress(null);
                     notify(s.partial ? 'Включён перевод первой части. Остальное готовится' : 'Перевод на русский включён');
                 }
-                if (s.lowered === null) { s.volume = v.volume; s.originalMuted = v.muted; }
-                const muteOriginal = options().original === 0;
-                s.lowered = s.volume * options().original / 100;
-                if (s.player && typeof s.player.setVolume === 'function') {
-                    try { s.player.setVolume(s.lowered * 100); } catch (_) {}
-                }
-                v.volume = s.lowered;
-                if (muteOriginal) { s.forcedMuted = true; setOriginalMuted(s, true); }
-                else if (s.forcedMuted) { setOriginalMuted(s, s.originalMuted); s.forcedMuted = false; }
-                else if (s.originalMuted) setOriginalMuted(s, true);
             } else {
-                s.silentFor += elapsed;
-                if (a.paused || a.readyState < 3 || s.silentFor >= 1500) restore(s);
+                s.silentFor = aligned && clockAdvanced ? 0 : s.silentFor + elapsed;
+                if (a.paused || a.readyState < 2 || s.silentFor >= 1500) restore(s);
                 if (s.confirmed && s.silentFor >= 20000) { fail(s, 'Аудио перевода не воспроизводится'); return; }
             }
+            if (s.confirmed && !a.paused && a.readyState >= 2 && s.silentFor < 1500) duck(s);
             if (a.paused && !s.playing) {
                 s.playing = true;
                 // Cobalt may return void and may need play() before metadata is available.
@@ -151,7 +156,7 @@ export function createTranslationController({ current, request, createAudio, not
                 if (s.audio) { restore(s); release(s.audio); }
                 clearTimeout(s.watchdog);
                 const a = s.audio = createAudio(s.video.currentTime); s.partial = result.partial;
-                s.mediaEvents = []; s.lastSync = Date.now(); s.silentFor = 0; s.lastAudioTime = null; s.confirmed = false;
+                s.mediaEvents = []; s.alignments = 0; s.lastSync = Date.now(); s.silentFor = 0; s.lastAudioTime = null; s.confirmed = false;
                 // Independent of video readiness, play() promises and the synchronization loop.
                 s.watchdog = setTimeout(() => { if (run === s && !s.confirmed) fail(s, 'PCM-звук не запустился за 60 секунд'); }, 60000);
                 ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'error'].forEach(name => {
@@ -161,7 +166,7 @@ export function createTranslationController({ current, request, createAudio, not
                     'Не удалось загрузить аудио перевода' + (a.error && a.error.message ? ': ' + a.error.message : '')); };
                 a.onended = () => { if (same(s) && s.audio === a && !s.video.ended) stop('Эта часть видео ещё не переведена. Попробуйте позже'); };
                 a.onloadedmetadata = () => { if (same(s) && s.audio === a) { resume(s); sync(s); } };
-                a.onwaiting = () => { if (same(s) && s.audio === a) restore(s); };
+
                 a.src = result.url; a.volume = options().voice / 100; a.load();
                 s.phase = 'Запуск аудио';
                 progress('Загрузка звука…');

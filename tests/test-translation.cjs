@@ -113,6 +113,17 @@ async function main() {
     await advance(); assert.equal(video.volume, 0); assert.equal(audio.volume, .5);
     assert(video.muted, 'zero original must mute the native video, not just set volume');
     await advance(); assert(!audio.muted, 'forced original mute must not silence translation');
+    // Frequent clock corrections are playback, not proof of an audio stall.
+    for (let i = 0; i < 5; i++) {
+        now += 500; video.currentTime += 1.5; audio.currentTime += .5;
+        video.volume = 1; video.muted = false;
+        tick(); await settle();
+        assert(video.muted, 'keep original muted through repeated clock alignment');
+        assert.equal(video.volume, 0); assert(!audio.muted);
+    }
+    for (let i = 0; i < 4; i++) { now += 500; video.currentTime += .5; tick(); await settle(); }
+    assert(!video.muted, 'a genuinely stuck audio clock must still restore original sound');
+    assert.equal(video.volume, .8);
     settings.original = 5; await advance(); assert(!video.muted, 'restore original mute when selecting a nonzero level');
     settings.original = 0; await advance(); assert(video.muted); assert.equal(playerVolumes.pop(), 0);
     prepared.stop(); assert.equal(playerVolumes.pop(), 80); assert(!video.muted); assert.equal(video.volume, .8); assert.equal(progress.pop(), null);

@@ -1,5 +1,12 @@
 # Changes
 
+## 0.6.4 preview — 2026-11-02
+
+- Keep original-volume attenuation active through normal PCM clock alignment after playback has been confirmed. An advancing but realigned clock is not an audio stall.
+- Do not restore full original volume on every short chunk waiting event; preserve the existing pause/error/actual-stall recovery.
+- Add alignment/stall counters to audio diagnostics and regression coverage that fails against 0.6.3 for repeated realignments and still restores sound for a truly stuck clock.
+- Move the live progress panel to the upper-right corner as requested. Projector volume behavior still requires hardware confirmation.
+
 ## 0.6.3 preview — 2026-11-02
 
 - Mute the original media element explicitly for the zero-original setting while keeping translated PCM independent of that forced mute. Restore the previous mute state on pause, failure, disabling translation or returning to a nonzero level.
