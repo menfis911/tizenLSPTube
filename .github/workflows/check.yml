@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 12.16.3
       - run: node tests/test-vot.cjs
-      - run: node tests/test-aac.cjs && node tests/test-translation.cjs && node tests/test-pcm.cjs && node tests/test-translation-progress.cjs && node tests/test-aac.cjs
+      - run: node tests/test-aac.cjs && node tests/test-translation.cjs && node tests/test-pcm.cjs && node tests/test-translation-progress.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: LSPTube-unsigned
