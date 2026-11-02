@@ -70,6 +70,18 @@ async function main() {
     assert.equal(audio.currentTime, 42); assert.equal(nodeCount, before);
     audio.muted = false; await settle(); assert(nodeCount > before);
     audio.removeAttribute('src'); audio.load(); assert.equal(interval, null); assert.equal(audio.networkState, 0);
+    const smooth = sandbox.createPcmAudio(context, 0, (url, index) => ({cancel() {}, promise: Promise.resolve({
+        samples: new Float32Array(480000), frames: 480000, rate: 48000, start: index * 10})}));
+    smooth.src = '/lsptube/pcm?token=smooth'; smooth.load(); await smooth.play();
+    const originalNode = node, originalCount = nodeCount;
+    smooth.driftRate = 1.03; interval(); await settle();
+    assert.equal(node, originalNode); assert.equal(nodeCount, originalCount, 'soft correction cannot restart the active source');
+    context.currentTime += 1; assert.equal(smooth.currentTime, 1, 'active clock keeps its original buffer speed');
+    node.onended(); await settle(); assert.equal(node.buffer.sampleRate, 49440);
+    context.currentTime += 1; assert(Math.abs(smooth.currentTime - 11.03) < 1e-8);
+    smooth.driftRate = .97; interval(); await settle(); node.onended(); await settle();
+    assert.equal(node.buffer.sampleRate, 46560);
+    smooth.removeAttribute('src'); smooth.load();
     let failures = 0;
     const failing = sandbox.createPcmAudio(context, 0, (url, index) => ({cancel() {},
         promise: index === 0 ? Promise.resolve({samples: new Float32Array(480000), frames: 480000, rate: 48000, start: 0}) :

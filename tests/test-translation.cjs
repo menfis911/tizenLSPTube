@@ -152,6 +152,20 @@ async function main() {
     assert(Math.abs(video.currentTime - audio.currentTime - .9) < 1e-6, 'corrections have a cooldown');
     video.listeners.seeked(); await settle(); assert.equal(audio.currentTime, video.currentTime, 'user seeking stays immediate');
     prepared.stop();
+    video = media(); settings = {original: 0, voice: 100, pause: false};
+    prepared.toggle(); resolveRequest({status: 1, url: '/lsptube/pcm?token=fixture'}); await settle();
+    await advance(); audio.sourceActive = true; audio.driftRate = 1;
+    for (let i = 0; i < 8; i++) {
+        now += 500; video.currentTime += .5; audio.currentTime = video.currentTime - .9; tick(); await settle();
+        assert(Math.abs(video.currentTime - audio.currentTime - .9) < 1e-6, 'PCM drift correction must not repeat or skip syllables');
+        assert.equal(audio.driftRate, 1.03); assert(video.muted);
+    }
+    audio.currentTime = video.currentTime + .9; tick(); assert.equal(audio.driftRate, .97);
+    audio.currentTime = video.currentTime - .1; tick(); assert.equal(audio.driftRate, 1);
+    audio.currentTime = video.currentTime - 4; tick(); assert.equal(audio.currentTime, video.currentTime);
+    audio.currentTime = video.currentTime - .9; video.listeners.seeked(); assert.equal(audio.currentTime, video.currentTime);
+    prepared.stop();
+    console.log('PASS: smooth PCM correction without position jumps, ahead/behind/deadband, large jumps and user seek');
     console.log('PASS: bounded drift correction, cooldown and immediate user seek');
     console.log('PASS: preparation pause, resume, cancel, saved balance, zero original and volume reassertion');
     console.log('Translation: cancellation, pause, seek, rate, video change, volume restoration and live rejection passed');

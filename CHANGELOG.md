@@ -1,5 +1,12 @@
 # Changes
 
+## 0.6.7 preview — 2026-11-02
+
+- Replace moderate PCM drift seeks with 0.97/1.00/1.03 speed correction applied to upcoming buffers only. The current source is never restarted by drift-rate changes; its clock uses the speed captured at its own start.
+- Keep immediate position alignment for explicit user seeks, initial alignment and discontinuities over three seconds. Use a deadband to avoid needless speed switching near sync.
+- Include the soft correction rate in diagnostics. Tests verify no syllable-skipping position changes during moderate drift, prepared-buffer rate invalidation, active-source continuity and correct per-source clocks.
+- User reports fewer interruptions on 0.6.6; audible output on 0.6.7 still needs Freestyle validation. Resampling by 3% can slightly change voice pitch; callback-sized chunk handoff gaps remain possible.
+
 ## 0.6.6 preview — 2026-11-02
 
 - Avoid restarting translated audio for brief drift: require two seconds of sustained drift and a five-second correction cooldown. Explicit user seeks and large discontinuities still align immediately.

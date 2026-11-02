@@ -80,7 +80,7 @@ const translation = createTranslationController({
         } catch (_) {}
         showTranslationDiagnostics(message, details);
     },
-    notify(message) { showToast('LSPTube 0.6.6 · Яндекс Перевод', message); }
+    notify(message) { showToast('LSPTube 0.6.7 · Яндекс Перевод', message); }
 });
 window.addEventListener('pagehide', () => translation.stop());
 export default translation;

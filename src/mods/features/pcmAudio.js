@@ -31,7 +31,7 @@ function requestPart(url, index) {
 export function createPcmAudio(context, initialPosition = 0, fetchPart = requestPart) {
     const listeners = {}, cache = new Map(), pending = new Map();
     let position = initialPosition, anchor = null, rate = 1, muted = false, wanted = false;
-    let volume = 1;
+    let volume = 1, driftRate = 1, activeRate = 1;
     let node = null, generation = 0, epoch = 0, timer, starting;
     const audio = {tagName: 'PCM/WebAudio', src: '', paused: true, ended: false, readyState: 0, networkState: 0,
         canPlayType: () => 'PCM через Web Audio', error: null,
@@ -99,16 +99,16 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
         pending.set(index, {promise, cancel: job.cancel}); return promise;
     }
     function prepareBuffer(data, offset) {
-        if (offset === 0 && data.buffer && data.bufferRate === rate && data.bufferVolume === volume) return data.buffer;
-        const buffer = context.createBuffer(1, data.frames - offset, data.rate * rate);
+        if (offset === 0 && data.buffer && data.bufferRate === rate * driftRate && data.bufferVolume === volume) return data.buffer;
+        const buffer = context.createBuffer(1, data.frames - offset, data.rate * rate * driftRate);
         const samples = data.samples.subarray(offset);
         buffer.copyToChannel(volume === 1 ? samples : samples.map(sample => sample * volume), 0, 0);
-        if (offset === 0) { data.buffer = buffer; data.bufferRate = rate; data.bufferVolume = volume; }
+        if (offset === 0) { data.buffer = buffer; data.bufferRate = rate * driftRate; data.bufferVolume = volume; }
         return buffer;
     }
     function start() {
         if (!wanted || node) return Promise.resolve();
-        if (muted) { anchor = context.currentTime; audio.readyState = 4; return Promise.resolve(); }
+        if (muted) { activeRate = rate; anchor = context.currentTime; audio.readyState = 4; return Promise.resolve(); }
         if (starting) return starting;
         const currentGeneration = generation;
         starting = (async () => {
@@ -126,7 +126,7 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
                 if (data.ended) { audio.ended = true; wanted = false; audio.paused = true; emit('ended'); }
                 else { audio.readyState = 2; emit('waiting'); start().catch(() => {}); }
             };
-            node = source; anchor = context.currentTime;
+            node = source; anchor = context.currentTime; activeRate = buffer.sampleRate / data.rate;
             // Cobalt 22 supports only start(0): crop the buffer instead of passing a seek offset.
             source.start(0); audio.readyState = 4; audio.networkState = 1; emit('playing');
         })().catch(error => { if (generation === currentGeneration) failure(error); throw error; })
@@ -134,10 +134,13 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
         return starting;
     }
     Object.defineProperties(audio, {
+        driftRate: {get: () => driftRate, set(value) {
+            if (Number.isFinite(value) && value >= .97 && value <= 1.03) driftRate = value;
+        }},
         sourceActive: {get: () => node !== null},
         volume: {get: () => volume, set(value) { if (!Number.isFinite(value) || value < 0 || value > 1 || value === volume) return;
             restart(); volume = value; if (wanted) start().catch(() => {}); }},
-        currentTime: {get: () => position + (anchor === null ? 0 : (context.currentTime - anchor) * rate),
+        currentTime: {get: () => position + (anchor === null ? 0 : (context.currentTime - anchor) * activeRate),
             set(value) { if (!Number.isFinite(value) || value < 0) return; restart(); position = value; audio.ended = false;
                 if (wanted) start().catch(() => {}); }},
         playbackRate: {get: () => rate, set(value) { if (!Number.isFinite(value) || value <= 0 || value === rate) return;

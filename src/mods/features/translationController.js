@@ -75,7 +75,7 @@ export function createTranslationController({ current, request, createAudio, not
             'Загрузка: ' + (a.progress || 'нет данных'),
             'Оригинал: задано ' + options().original + '%; volume=' + s.video.volume + '; muted=' + s.video.muted,
             'Перевод: ' + options().voice + '%; принудительное отключение оригинала=' + !!s.forcedMuted,
-            'PCM sourceActive: ' + a.sourceActive,
+            'PCM sourceActive: ' + a.sourceActive + '; плавная скорость: ' + (a.driftRate || 1),
             'readyState: ' + a.readyState + '; networkState: ' + a.networkState,
             'paused: ' + a.paused + '; error: ' + (a.error ? a.error.code : 0),
             'Аудио: ' + Number(a.currentTime).toFixed(2) + ' с; видео: ' + Number(s.video.currentTime).toFixed(2) + ' с',
@@ -110,8 +110,14 @@ export function createTranslationController({ current, request, createAudio, not
             const drift = v.currentTime - a.currentTime;
             if (Math.abs(drift) <= 0.7) s.driftSince = null;
             else if (s.driftSince === null) s.driftSince = now;
-            const correctDrift = !s.confirmed || s.needsSeek || Math.abs(drift) > 3 ||
-                (s.driftSince !== null && now - s.driftSince >= 2000 && now - s.lastAlignment >= 5000);
+            const smooth = typeof a.driftRate === 'number' && s.confirmed && !s.needsSeek && Math.abs(drift) <= 3;
+            if (smooth) {
+                if (drift > .35) a.driftRate = 1.03;
+                else if (drift < -.35) a.driftRate = .97;
+                else if (Math.abs(drift) < .15) a.driftRate = 1;
+            } else if (typeof a.driftRate === 'number') a.driftRate = 1;
+            const correctDrift = !smooth && ( !s.confirmed || s.needsSeek || Math.abs(drift) > 3 ||
+                (s.driftSince !== null && now - s.driftSince >= 2000 && now - s.lastAlignment >= 5000));
             if (a.readyState >= 1 && Math.abs(drift) > 0.7 && correctDrift) {
                 a.currentTime = v.currentTime; aligned = true; s.alignments++;
                 s.lastAlignment = now; s.driftSince = null;
