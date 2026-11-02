@@ -8,6 +8,7 @@ import { t } from 'i18next';
 import { requestNextAndNavigateChannel } from './utils/innerTubeCalls.js';
 import qrcode from 'qrcode-npm';
 import translation from './features/yandexTranslation.js';
+import startAacTest from './features/aacTest.js';
 import showGuideSettings from './ui/sidebarModification.js';
 
 export default function resolveCommand(cmd, _) {
@@ -206,6 +207,10 @@ export function patchResolveCommand() {
 }
 
 function customAction(action, parameters) {
+    if (action === 'LSP_AAC_TEST') {
+        resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
+        translation.stop(); startAacTest(parameters); return;
+    }
     if (action === 'LSP_TRANSLATE_STATUS') {
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
         translation.inspect(); return;

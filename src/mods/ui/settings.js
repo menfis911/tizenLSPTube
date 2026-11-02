@@ -10,6 +10,8 @@ export const translationOptions = [
         ({name: value === 0 ? 'Без оригинала' : value + '%', key: 'translationOriginalVolume', value})) },
     { name: 'Громкость перевода', value: null, menuId: 'lsptube-voice-volume', menuHeader: 'Громкость перевода', options: [25, 50, 75, 100].map(value =>
         ({name: value + '%', key: 'translationVoiceVolume', value})) },
+    { name: 'Проверка AAC · файл', subtitle: '20 секунд тестового звука вместе с YouTube', value: null, options: [], action: {customAction: {action: 'LSP_AAC_TEST', parameters: 'file'}} },
+    { name: 'Проверка AAC · MediaSource', subtitle: 'Второй способ непрерывного воспроизведения', value: null, options: [], action: {customAction: {action: 'LSP_AAC_TEST', parameters: 'mse'}} },
     { name: 'Пауза до готовности перевода', subtitle: 'Продолжить ролик после загрузки звука', value: 'translationPauseUntilReady' }
 ];
 

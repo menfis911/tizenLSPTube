@@ -1,5 +1,11 @@
 # Changes
 
+## 0.7.0 AAC test — 2026-11-02
+
+- Add isolated native AAC-LC/MP4 and MediaSource tests alongside YouTube, using bundled original 20-second synthetic tones. Translation still uses the existing PCM path; no transcoder is installed or enabled on the projector yet.
+- Serve local fixtures with GET/HEAD and byte ranges. Report audio events/error/clock and YouTube movement after the test; Back stops the test, and errors/timeouts release media, pending requests and object URLs.
+- Add format, packaging, fixture-route and lifecycle tests. Hardware support, audible continuity and simultaneous decoding must be confirmed by the Freestyle test before implementing the replacement translation path.
+
 ## 0.6.7 preview — 2026-11-02
 
 - Replace moderate PCM drift seeks with 0.97/1.00/1.03 speed correction applied to upcoming buffers only. The current source is never restarted by drift-rate changes; its clock uses the speed captured at its own start.

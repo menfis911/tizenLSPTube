@@ -28,8 +28,10 @@ class BuildTest(unittest.TestCase):
                 self.assertNotIn('<tizen:service', config)
             with zipfile.ZipFile(first[1]) as z:
                 self.assertIn('TTLaunch01.StandaloneService', z.read('config.xml').decode())
-                for name in ['bridge.js', 'vot.js', 'userscript.js']:
+                for name in ['bridge.js', 'vot.js', 'userscript.js', 'aac-fixture.js', 'aac-test.mp4', 'aac-test-fragmented.mp4']:
                     self.assertIn('service/dist/' + name, z.namelist())
+                for name in ['aac-test.mp4', 'aac-test-fragmented.mp4']:
+                    self.assertEqual(z.read('service/dist/' + name), (builder.ROOT / 'assets/audio' / name).read_bytes())
                 bundle = z.read('service/dist/index.js').decode()
                 self.assertIn("require('./bridge.js').handle(request, response)", bundle)
                 self.assertIn('https://www.youtube.com/lsptube/userscript.js', bundle)
