@@ -109,7 +109,7 @@ export function createPcmAudio(context, initialPosition = 0, fetchPart = request
             const offset = Math.max(0, Math.floor((position - data.start) * data.rate));
             if (offset >= data.frames) { audio.ended = true; wanted = false; audio.paused = true; emit('ended'); return; }
             const buffer = context.createBuffer(1, data.frames - offset, data.rate * rate);
-            buffer.getChannelData(0).set(data.samples.subarray(offset));
+            buffer.copyToChannel(data.samples.subarray(offset), 0, 0);
             const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination);
             source.onended = () => {
                 if (node !== source || generation !== currentGeneration) return;

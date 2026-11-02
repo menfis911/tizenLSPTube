@@ -24,7 +24,8 @@ async function main() {
     let interval, node, nodeCount = 0;
     const context = {currentTime: 0, destination: {},
         createBuffer(channels, length, rate) { assert.equal(channels, 1); const data = new Float32Array(length);
-            return {length, sampleRate: rate, getChannelData: () => data}; },
+            return {length, sampleRate: rate, samples: data,
+                copyToChannel(samples, channel, start) { assert.equal(channel, 0); assert.equal(start, 0); data.set(samples, start); }}; },
         createBufferSource() { nodeCount++; return {
             connect() {}, disconnect() {}, stop(when) { assert.equal(when, 0); },
             start(...args) { assert.deepEqual(args, [0], 'Cobalt supports only start(0)'); node = this; }
@@ -41,6 +42,8 @@ async function main() {
     });
     audio.src = '/lsptube/pcm?token=fixture'; audio.load(); await audio.play();
     assert.equal(node.buffer.length, 408000); assert.equal(node.buffer.sampleRate, 48000);
+    assert(Math.abs(node.buffer.samples[0] - .2) < 1e-7);
+    assert(Math.abs(node.buffer.samples[node.buffer.length - 1] - .2) < 1e-7);
     assert.equal(audio.readyState, 4); assert.equal(fetched[0], 1);
     context.currentTime = 1; assert.equal(audio.currentTime, 12.5);
     audio.pause(); context.currentTime = 3; assert.equal(audio.currentTime, 12.5);

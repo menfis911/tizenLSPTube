@@ -1,5 +1,11 @@
 # Changes
 
+## 0.5.1 preview — 2026-11-02
+
+- Fill PCM buffers using Cobalt AudioBuffer.copyToChannel; getChannelData is unavailable on the projector.
+- Match the playback test double to the Cobalt API and verify copied audio samples. No backend or Engine changes are required.
+- Audible output on the Freestyle still needs device confirmation.
+
 ## 0.5.0 preview — 2026-11-01
 
 - Replace native MP3 playback, rejected with MEDIA_ERR_SRC_NOT_SUPPORTED on the Freestyle, with service-side MP3 decoding and chunked PCM through Cobalt Web Audio.
