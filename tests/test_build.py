@@ -30,7 +30,7 @@ class BuildTest(unittest.TestCase):
                 self.assertIn('TTLaunch01.StandaloneService', z.read('config.xml').decode())
                 for name in ['bridge.js', 'vot.js', 'userscript.js', 'aac-fixture.js', 'aac-test.mp4', 'aac-test-fragmented.mp4']:
                     self.assertIn('service/dist/' + name, z.namelist())
-                for name in ['aac-test.mp4', 'aac-test-fragmented.mp4']:
+                for name in ['aac-test.mp4', 'aac-test-fragmented.mp4', 'aac-replace-44100-1.mp4', 'aac-replace-44100-2.mp4', 'aac-replace-48000-1.mp4', 'aac-replace-48000-2.mp4']:
                     self.assertEqual(z.read('service/dist/' + name), (builder.ROOT / 'assets/audio' / name).read_bytes())
                 bundle = z.read('service/dist/index.js').decode()
                 self.assertIn("require('./bridge.js').handle(request, response)", bundle)

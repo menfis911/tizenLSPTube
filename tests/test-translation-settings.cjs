@@ -12,7 +12,7 @@ const source = fs.readFileSync(__dirname + '/../src/mods/ui/settings.js', 'utf8'
 vm.runInContext(source + '\nthis.options = translationOptions;', context);
 context.optionShow({options: context.options, selectedIndex: 0, menuId: 'lsptube-translation-settings'}, false);
 const parent = shown;
-for (const [index, key, id] of [[0, 'translationOriginalVolume', 'lsptube-original-volume'], [1, 'translationVoiceVolume', 'lsptube-voice-volume']]) {
+for (const [index, key, id] of [[1, 'translationOriginalVolume', 'lsptube-original-volume'], [2, 'translationVoiceVolume', 'lsptube-voice-volume']]) {
     const command = parent.content.items[index].commands[0].customAction;
     context.optionShow(command.parameters, command.parameters.update);
     assert.equal(shown.id, id); assert.notEqual(shown.id, parent.id, 'nested popup needs its own identity');

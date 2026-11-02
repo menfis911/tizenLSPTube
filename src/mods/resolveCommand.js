@@ -9,6 +9,7 @@ import { requestNextAndNavigateChannel } from './utils/innerTubeCalls.js';
 import qrcode from 'qrcode-npm';
 import translation from './features/yandexTranslation.js';
 import startAacTest from './features/aacTest.js';
+import startSinglePlayerTest, {cancelSinglePlayerTest} from './features/singlePlayerTest.js';
 import showGuideSettings from './ui/sidebarModification.js';
 
 export default function resolveCommand(cmd, _) {
@@ -207,7 +208,12 @@ export function patchResolveCommand() {
 }
 
 function customAction(action, parameters) {
+    if (action === 'LSP_SINGLE_PLAYER_TEST') {
+        resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
+        translation.stop(); startSinglePlayerTest(); return;
+    }
     if (action === 'LSP_AAC_TEST') {
+        cancelSinglePlayerTest();
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
         translation.stop(); startAacTest(parameters); return;
     }
@@ -216,6 +222,7 @@ function customAction(action, parameters) {
         translation.inspect(); return;
     }
     if (action === 'LSP_TRANSLATE') {
+        cancelSinglePlayerTest();
         resolveCommand({ signalAction: { signal: 'POPUP_BACK' } });
         translation.toggle(); return;
     }

@@ -1,6 +1,10 @@
 'use strict';
 var fs = require('fs');
 var files = {
+    '/lsptube/aac-replace-44100-1.mp4': fs.readFileSync(__dirname + '/aac-replace-44100-1.mp4'),
+    '/lsptube/aac-replace-44100-2.mp4': fs.readFileSync(__dirname + '/aac-replace-44100-2.mp4'),
+    '/lsptube/aac-replace-48000-1.mp4': fs.readFileSync(__dirname + '/aac-replace-48000-1.mp4'),
+    '/lsptube/aac-replace-48000-2.mp4': fs.readFileSync(__dirname + '/aac-replace-48000-2.mp4'),
     '/lsptube/aac-test.mp4': fs.readFileSync(__dirname + '/aac-test.mp4'),
     '/lsptube/aac-test-fragmented.mp4': fs.readFileSync(__dirname + '/aac-test-fragmented.mp4')
 };

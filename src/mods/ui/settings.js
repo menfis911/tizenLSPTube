@@ -6,6 +6,7 @@ import resolveCommand from '../resolveCommand.js';
 
 const qrcodes = {};
 export const translationOptions = [
+    { name: 'Проверка звука в одном плеере', subtitle: 'Подготовить проверку, затем открыть другой ролик', value: null, options: [], action: {customAction: {action: 'LSP_SINGLE_PLAYER_TEST'}} },
     { name: 'Громкость оригинала', value: null, menuId: 'lsptube-original-volume', menuHeader: 'Громкость оригинала', options: [0, 5, 10, 15, 25, 50, 100].map(value =>
         ({name: value === 0 ? 'Без оригинала' : value + '%', key: 'translationOriginalVolume', value})) },
     { name: 'Громкость перевода', value: null, menuId: 'lsptube-voice-volume', menuHeader: 'Громкость перевода', options: [25, 50, 75, 100].map(value =>

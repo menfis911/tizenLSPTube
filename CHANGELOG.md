@@ -1,5 +1,13 @@
 # Changes
 
+## 0.7.1 single-player test — 2026-11-02
+
+- Add an opt-in next-video prototype that replaces AAC sample payloads in the existing YouTube audio SourceBuffer. Create no second media element or MediaSource; leave video packets and native append/update behavior unchanged.
+- Preserve original AAC initialization, track ID, decoding timestamps and sample durations. Supply original synthetic AAC-LC presets matching 44.1/48 kHz mono/stereo; request AAC only while the test is armed. Do not touch protected or unsupported tracks.
+- Bind replacement to the MediaSource attached to the current video. Outside the opt-in test, delegate original bytes; parser failures stop the test and fall back to original packets.
+- Report replaced packets/frames, audio format, video movement and element counts. This is a feasibility test, not translated AAC or a runtime encoder. Buffered test audio can persist until another video is opened.
+- Verify all four remuxed files with a real decoder; automated tests cover timestamps/init preservation, configuration matching, source routing, video pass-through, native append semantics and safe cancellation/fallback. Freestyle compatibility remains unverified.
+
 ## 0.7.0 AAC test — 2026-11-02
 
 - Add isolated native AAC-LC/MP4 and MediaSource tests alongside YouTube, using bundled original 20-second synthetic tones. Translation still uses the existing PCM path; no transcoder is installed or enabled on the projector yet.

@@ -6,7 +6,7 @@ function request(url, method = 'GET', range) {
         writeHead(code, headers) {result.code = code; result.headers = headers;}, end(body) {result.body = body;}
     }); return result;
 }
-for (const name of ['aac-test.mp4', 'aac-test-fragmented.mp4']) {
+for (const name of ['aac-test.mp4', 'aac-test-fragmented.mp4', 'aac-replace-44100-1.mp4', 'aac-replace-44100-2.mp4', 'aac-replace-48000-1.mp4', 'aac-replace-48000-2.mp4']) {
     const url = '/lsptube/' + name, full = request(url);
     assert.equal(full.code, 200); assert.equal(full.headers['Content-Type'], 'audio/mp4');
     assert(full.body.equals(fs.readFileSync(__dirname + '/../assets/audio/' + name)));
